@@ -18,6 +18,8 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { type ApiConfig, loadConfig } from "./config.js";
 import type { DatabaseHandle } from "./db/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerProtocolRoutes } from "./routes/protocol.js";
+import { FacilitatorService } from "./services/facilitator.js";
 
 /**
  * Redacted logger paths ensuring secrets, keys, cookies, and tokens are never logged (SPEC.md sections 0.2 rule 6 and 8.7).
@@ -56,6 +58,8 @@ export interface BuildAppOptions {
   config?: ApiConfig | undefined;
   /** Optional database handle for routes and readiness checks */
   dbHandle?: DatabaseHandle | undefined;
+  /** Optional pre-configured FacilitatorService instance */
+  facilitator?: FacilitatorService | undefined;
   /** Optional custom readiness probe override for unit tests */
   checkReady?: (() => Promise<{ ready: boolean; reason?: string | undefined }>) | undefined;
 }
@@ -228,10 +232,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     );
   });
 
+  const facilitator = options.facilitator ?? (await FacilitatorService.create(config));
+
   await registerHealthRoutes(app, {
     dbHandle: options.dbHandle,
     checkReady: options.checkReady,
   });
+
+  await registerProtocolRoutes(app, facilitator);
 
   return app;
 }

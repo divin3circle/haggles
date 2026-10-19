@@ -1,0 +1,221 @@
+{
+  "description": "Haggles protocol HTTP 402 challenge test vectors (SPEC.md sections 4.1, 4.2, 10.1)",
+  "valid": [
+    {
+      "name": "standard challenge with description",
+      "challenge": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "description": "One poem from the collection",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      },
+      "encoded": "eyJwcm90b2NvbCI6ImhhZ2dsZXMiLCJ2ZXJzaW9uIjoxLCJzY2hlbWUiOiJwcmVwYWlkLXVzZCIsImNoYWxsZW5nZV9pZCI6ImNobF8wMUo5WjNLNE01TjZQN1E4UjlTMFQxVTJWMyIsImFtb3VudCI6IjAuMDIiLCJjdXJyZW5jeSI6IlVTRCIsIm1ldGhvZCI6IkdFVCIsInVybCI6Imh0dHBzOi8vcG9lbXMuZXhhbXBsZS5jb20vcG9lbXMvNDIiLCJzZWxsZXJfaWQiOiJzbHJfMDFKOVk4SzRNNU42UDdROFI5UzBUMVUyVjMiLCJkZXNjcmlwdGlvbiI6Ik9uZSBwb2VtIGZyb20gdGhlIGNvbGxlY3Rpb24iLCJmYWNpbGl0YXRvciI6Imh0dHBzOi8vYXBpLmhhZ2dsZXMuZXhhbXBsZS5jb20iLCJleHBpcmVzX2F0IjoiMjAyNi0xMC0wNlQxMjowMTowMFoifQ"
+    },
+    {
+      "name": "challenge without optional description",
+      "challenge": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V4",
+        "amount": "0.0001",
+        "currency": "USD",
+        "method": "POST",
+        "url": "https://datasets.example.com/datasets/rent-index?city=austin",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00.500Z"
+      }
+    },
+    {
+      "name": "challenge with unknown extra fields (stripped on parse per SPEC 4.2)",
+      "raw": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V5",
+        "amount": "5.00",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/random",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z",
+        "future_extension_field": "ignored"
+      },
+      "challenge": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V5",
+        "amount": "5.00",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/random",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "wrong protocol",
+      "payload": {
+        "protocol": "x402",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "unsupported version 2",
+      "payload": {
+        "protocol": "haggles",
+        "version": 2,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "amount below minimum (0.00005 < 0.0001)",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.00005",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "amount above maximum (5.01 > 5.00)",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "5.01",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "non-USD currency",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "EUR",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "wrong challenge_id prefix",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "pay_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "wrong seller_id prefix",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "acc_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "relative url instead of absolute",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00Z"
+      }
+    },
+    {
+      "name": "non-UTC expires_at timestamp",
+      "payload": {
+        "protocol": "haggles",
+        "version": 1,
+        "scheme": "prepaid-usd",
+        "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+        "amount": "0.02",
+        "currency": "USD",
+        "method": "GET",
+        "url": "https://poems.example.com/poems/42",
+        "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+        "facilitator": "https://api.haggles.example.com",
+        "expires_at": "2026-10-06T12:01:00+03:00"
+      }
+    }
+  ],
+  "invalidEncoded": [
+    "",
+    "not-valid-json-in-base64url",
+    "===padding===",
+    "eyJub3QiOiJhIGNoYWxsZW5nZSJ9"
+  ]
+}

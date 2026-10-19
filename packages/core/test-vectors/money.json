@@ -1,0 +1,116 @@
+{
+  "description": "Haggles protocol money parse/format test vectors (SPEC.md sections 0.1, 4.2, 10.1)",
+  "valid": [
+    {
+      "input": "0",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.0",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.00",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.000001",
+      "micros": "1",
+      "formatted": "0.000001"
+    },
+    {
+      "input": "0.0001",
+      "micros": "100",
+      "formatted": "0.0001"
+    },
+    {
+      "input": "0.000100",
+      "micros": "100",
+      "formatted": "0.0001"
+    },
+    {
+      "input": "0.0035",
+      "micros": "3500",
+      "formatted": "0.0035"
+    },
+    {
+      "input": "0.005",
+      "micros": "5000",
+      "formatted": "0.005"
+    },
+    {
+      "input": "0.01",
+      "micros": "10000",
+      "formatted": "0.01"
+    },
+    {
+      "input": "0.02",
+      "micros": "20000",
+      "formatted": "0.02"
+    },
+    {
+      "input": "0.1",
+      "micros": "100000",
+      "formatted": "0.10"
+    },
+    {
+      "input": "0.10",
+      "micros": "100000",
+      "formatted": "0.10"
+    },
+    {
+      "input": "1",
+      "micros": "1000000",
+      "formatted": "1.00"
+    },
+    {
+      "input": "5.00",
+      "micros": "5000000",
+      "formatted": "5.00"
+    },
+    {
+      "input": "12.5",
+      "micros": "12500000",
+      "formatted": "12.50"
+    },
+    {
+      "input": "200.00",
+      "micros": "200000000",
+      "formatted": "200.00"
+    },
+    {
+      "input": "500.00",
+      "micros": "500000000",
+      "formatted": "500.00"
+    },
+    {
+      "input": "9999999.999999",
+      "micros": "9999999999999",
+      "formatted": "9999999.999999"
+    }
+  ],
+  "invalid": [
+    "",
+    " ",
+    "0.02 ",
+    " 0.02",
+    "-0.01",
+    "+0.02",
+    ".02",
+    "0.",
+    "00.02",
+    "01.00",
+    "0.0000001",
+    "10000000.00",
+    "1e-5",
+    "1E2",
+    "NaN",
+    "Infinity",
+    "$0.02",
+    "0,02",
+    "abc"
+  ]
+}

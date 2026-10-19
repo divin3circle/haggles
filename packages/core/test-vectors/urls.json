@@ -1,0 +1,178 @@
+{
+  "description": "Haggles protocol canonical URL test vectors (>= 30 cases, SPEC.md sections 4.3 and 10.1)",
+  "valid": [
+    {
+      "name": "already canonical https URL",
+      "input": "https://poems.example.com/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "uppercase scheme and host",
+      "input": "HTTPS://POEMS.EXAMPLE.COM/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "mixed case scheme and host",
+      "input": "HtTpS://PoEmS.ExAmPlE.cOm/Poems/42",
+      "expected": "https://poems.example.com/Poems/42"
+    },
+    {
+      "name": "strip default https port 443",
+      "input": "https://poems.example.com:443/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip default http port 80",
+      "input": "http://poems.example.com:80/poems/42",
+      "expected": "http://poems.example.com/poems/42"
+    },
+    {
+      "name": "preserve non-default https port 8443",
+      "input": "https://poems.example.com:8443/poems/42",
+      "expected": "https://poems.example.com:8443/poems/42"
+    },
+    {
+      "name": "preserve non-default http port 3000",
+      "input": "http://localhost:3000/datasets/rent-index",
+      "expected": "http://localhost:3000/datasets/rent-index"
+    },
+    {
+      "name": "preserve port 80 on https",
+      "input": "https://poems.example.com:80/poems/42",
+      "expected": "https://poems.example.com:80/poems/42"
+    },
+    {
+      "name": "preserve port 443 on http",
+      "input": "http://poems.example.com:443/poems/42",
+      "expected": "http://poems.example.com:443/poems/42"
+    },
+    {
+      "name": "add root slash when path is empty",
+      "input": "https://poems.example.com",
+      "expected": "https://poems.example.com/"
+    },
+    {
+      "name": "add root slash when path is empty with default port",
+      "input": "https://poems.example.com:443",
+      "expected": "https://poems.example.com/"
+    },
+    {
+      "name": "preserve trailing slash on path",
+      "input": "https://poems.example.com/poems/",
+      "expected": "https://poems.example.com/poems/"
+    },
+    {
+      "name": "strip fragment",
+      "input": "https://poems.example.com/poems/42#stanza-2",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip empty fragment",
+      "input": "https://poems.example.com/poems/42#",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip fragment when query is present",
+      "input": "https://datasets.example.com/datasets/rent-index?city=austin#table",
+      "expected": "https://datasets.example.com/datasets/rent-index?city=austin"
+    },
+    {
+      "name": "keep query string parameter order unsortd (b before a)",
+      "input": "https://datasets.example.com/search?b=2&a=1&c=3",
+      "expected": "https://datasets.example.com/search?b=2&a=1&c=3"
+    },
+    {
+      "name": "keep duplicate query parameters in original order",
+      "input": "https://datasets.example.com/search?tag=ai&tag=payments&tag=ai",
+      "expected": "https://datasets.example.com/search?tag=ai&tag=payments&tag=ai"
+    },
+    {
+      "name": "strip bare trailing question mark with empty query",
+      "input": "https://poems.example.com/poems/42?",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip bare trailing question mark before fragment",
+      "input": "https://poems.example.com/poems/42?#frag",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "normalize lowercase percent-encoding in path to uppercase hex",
+      "input": "https://poems.example.com/poems/%2f42%3a1",
+      "expected": "https://poems.example.com/poems/%2F42%3A1"
+    },
+    {
+      "name": "normalize mixed-case percent-encoding in query to uppercase hex",
+      "input": "https://datasets.example.com/rent?city=San%20Francisco&filter=%3d%26%2f",
+      "expected": "https://datasets.example.com/rent?city=San%20Francisco&filter=%3D%26%2F"
+    },
+    {
+      "name": "do not decode reserved characters (%2F, %3F, %26, %3D, %23)",
+      "input": "https://poems.example.com/a%2Fb%3Fc%26d%3De%23f",
+      "expected": "https://poems.example.com/a%2Fb%3Fc%26d%3De%23f"
+    },
+    {
+      "name": "preserve percent-encoded unreserved characters with uppercase hex",
+      "input": "https://poems.example.com/%7euser/%41%42",
+      "expected": "https://poems.example.com/%7Euser/%41%42"
+    },
+    {
+      "name": "resolve single-dot and double-dot path segments",
+      "input": "https://poems.example.com/a/b/./c/../d",
+      "expected": "https://poems.example.com/a/b/d"
+    },
+    {
+      "name": "encode UTF-8 characters in path with uppercase hex",
+      "input": "https://poems.example.com/poems/café",
+      "expected": "https://poems.example.com/poems/caf%C3%A9"
+    },
+    {
+      "name": "encode UTF-8 characters in query with uppercase hex",
+      "input": "https://datasets.example.com/rent?city=München",
+      "expected": "https://datasets.example.com/rent?city=M%C3%BCnchen"
+    },
+    {
+      "name": "convert internationalized domain name (IDN) to punycode",
+      "input": "https://münchen.example.com/datasets",
+      "expected": "https://xn--mnchen-3ya.example.com/datasets"
+    },
+    {
+      "name": "IPv4 host with port",
+      "input": "http://127.0.0.1:4000/v1/payments",
+      "expected": "http://127.0.0.1:4000/v1/payments"
+    },
+    {
+      "name": "IPv6 host with default port stripped and hex lowercased",
+      "input": "http://[2001:DB8::1]:80/v1/payments",
+      "expected": "http://[2001:db8::1]/v1/payments"
+    },
+    {
+      "name": "preserve plus sign in query string",
+      "input": "https://datasets.example.com/rent?city=New+York",
+      "expected": "https://datasets.example.com/rent?city=New+York"
+    },
+    {
+      "name": "preserve empty value query param",
+      "input": "https://datasets.example.com/rent?city=",
+      "expected": "https://datasets.example.com/rent?city="
+    },
+    {
+      "name": "combined normalization: scheme, host, default port, percent-hex, query order, fragment",
+      "input": "HTTPS://API.Haggles.Example.COM:443/v1/items/%2falpha?z=1&a=%3a#section",
+      "expected": "https://api.haggles.example.com/v1/items/%2Falpha?z=1&a=%3A"
+    }
+  ],
+  "invalid": [
+    "",
+    "   ",
+    " https://poems.example.com/poems/42",
+    "https://poems.example.com/poems/42 ",
+    "/poems/42",
+    "poems.example.com/poems/42",
+    "ftp://poems.example.com/poems/42",
+    "ws://poems.example.com/poems/42",
+    "javascript:alert(1)",
+    "https://user:pass@poems.example.com/poems/42",
+    "https://user@poems.example.com/poems/42"
+  ]
+}

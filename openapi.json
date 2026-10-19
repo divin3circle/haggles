@@ -1,0 +1,168 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Haggles API",
+    "description": "Haggles facilitator protocol API (`/v1/*`), portal API (`/portal/v1/*`), and PayPal webhooks (SPEC.md section 5).",
+    "version": "0.1.0",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "components": {
+    "schemas": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Liveness probe",
+        "tags": [
+          "system"
+        ],
+        "description": "Returns 200 OK whenever the API process is up (SPEC.md section 5.1).",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "ok"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_ready"
+                          ]
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness probe",
+        "tags": [
+          "system"
+        ],
+        "description": "Verifies PostgreSQL connectivity and that all required migrations have been applied (SPEC.md sections 5.1 and 9.3).",
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "ok"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_ready"
+                          ]
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "ok"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_ready"
+                          ]
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.haggles.example.com",
+      "description": "Haggles Facilitator API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "system",
+      "description": "Health and readiness endpoints"
+    },
+    {
+      "name": "protocol",
+      "description": "Haggles HTTP 402 facilitator protocol endpoints"
+    },
+    {
+      "name": "portal",
+      "description": "Authenticated portal buyer and seller endpoints"
+    },
+    {
+      "name": "webhooks",
+      "description": "PayPal webhook receiver"
+    }
+  ]
+}

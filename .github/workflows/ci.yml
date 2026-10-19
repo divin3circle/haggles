@@ -34,6 +34,9 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: OpenAPI drift check
+        run: bun run openapi:check
+
       - name: Dependency audit
         run: bun audit --audit-level=high || true # TODO(M1): drop `|| true` once packages exist and audit is meaningful
 

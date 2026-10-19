@@ -18,6 +18,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { type ApiConfig, loadConfig } from "./config.js";
 import type { DatabaseHandle } from "./db/index.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerPortalRoutes } from "./routes/portal.js";
 import { registerProtocolRoutes } from "./routes/protocol.js";
 import { FacilitatorService } from "./services/facilitator.js";
 
@@ -240,6 +241,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   await registerProtocolRoutes(app, facilitator);
+  await registerPortalRoutes(app, facilitator, config);
 
   return app;
 }
+

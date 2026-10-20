@@ -5,7 +5,14 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "main": "./dist/server.js",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "engines": {
     "node": ">=22"
   },

@@ -23,7 +23,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "db:up": "docker compose up -d",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "seed": "bun scripts/seed.ts"
   },
   "devDependencies": {
     "prettier": "^3.9.9",

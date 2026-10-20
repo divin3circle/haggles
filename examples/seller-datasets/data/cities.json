@@ -1,0 +1,54 @@
+{
+  "notice": "Sample benchmark dataset created for the Haggles HTTP 402 demo (SPEC.md section 12.1). Values are illustrative synthetic benchmarks for demonstration purposes.",
+  "updated_at": "2026-10-01T00:00:00Z",
+  "cities": {
+    "austin": {
+      "city": "Austin, TX",
+      "slug": "austin",
+      "rent_index": {
+        "median_1br_usd": 1620,
+        "median_2br_usd": 2080,
+        "yoy_change_pct": -2.4,
+        "vacancy_rate_pct": 7.8
+      },
+      "transit_fares": {
+        "agency": "CapMetro (Sample Benchmark)",
+        "single_ride_usd": "1.25",
+        "day_pass_usd": "2.50",
+        "monthly_pass_usd": "41.25"
+      }
+    },
+    "chicago": {
+      "city": "Chicago, IL",
+      "slug": "chicago",
+      "rent_index": {
+        "median_1br_usd": 1950,
+        "median_2br_usd": 2490,
+        "yoy_change_pct": 3.8,
+        "vacancy_rate_pct": 5.1
+      },
+      "transit_fares": {
+        "agency": "CTA (Sample Benchmark)",
+        "single_ride_usd": "2.50",
+        "day_pass_usd": "5.00",
+        "monthly_pass_usd": "75.00"
+      }
+    },
+    "seattle": {
+      "city": "Seattle, WA",
+      "slug": "seattle",
+      "rent_index": {
+        "median_1br_usd": 2190,
+        "median_2br_usd": 2840,
+        "yoy_change_pct": 1.9,
+        "vacancy_rate_pct": 5.9
+      },
+      "transit_fares": {
+        "agency": "Sound Transit / King County Metro (Sample Benchmark)",
+        "single_ride_usd": "2.75",
+        "day_pass_usd": "6.00",
+        "monthly_pass_usd": "99.00"
+      }
+    }
+  }
+}

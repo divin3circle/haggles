@@ -1,0 +1,52 @@
+[
+  {
+    "id": "ozymandias",
+    "title": "Ozymandias",
+    "author": "Percy Bysshe Shelley (1818, Public Domain)",
+    "lines": [
+      "I met a traveller from an antique land,",
+      "Who said—\"Two vast and trunkless legs of stone",
+      "Stand in the desert. . . . Near them, on the sand,",
+      "Half sunk a shattered visage lies, whose frown,",
+      "And wrinkled lip, and sneer of cold command,",
+      "Tell that its sculptor well those passions read",
+      "Which yet survive, stamped on these lifeless things,",
+      "The hand that mocked them, and the heart that fed;",
+      "And on the pedestal, these words appear:",
+      "My name is Ozymandias, King of Kings;",
+      "Look on my Works, ye Mighty, and despair!",
+      "Nothing beside remains. Round the decay",
+      "Of that colossal Wreck, boundless and bare",
+      "The lone and level sands stretch far away.\""
+    ]
+  },
+  {
+    "id": "hope-is-the-thing-with-feathers",
+    "title": "Hope is the thing with feathers (254)",
+    "author": "Emily Dickinson (1891, Public Domain)",
+    "lines": [
+      "“Hope” is the thing with feathers -",
+      "That perches in the soul -",
+      "And sings the tune without the words -",
+      "And never stops - at all -",
+      "And sweetest - in the Gale - is heard -",
+      "And sore must be the storm -",
+      "That could abash the little Bird",
+      "That kept so many warm -",
+      "I’ve heard it in the chillest land -",
+      "And on the strangest Sea -",
+      "Yet - never - in Extremity,",
+      "It asked a crumb - of me."
+    ]
+  },
+  {
+    "id": "micro-ledger-haiku",
+    "title": "Four-Oh-Two Haiku",
+    "author": "Original for Haggles Demo (CC0)",
+    "lines": [
+      "Four-oh-two returned,",
+      "Signed receipt unlocks the verse,",
+      "Half a cent well spent."
+    ]
+  }
+]

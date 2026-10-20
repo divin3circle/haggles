@@ -34,7 +34,7 @@ import {
   portalApi,
 } from "@/lib/portal-api";
 import { cn } from "@/lib/utils";
-import { Money, SandboxBanner } from "./primitives";
+import { HagglesLogo, Money, SandboxBanner } from "./primitives";
 
 interface NavItem {
   label: string;
@@ -126,9 +126,7 @@ export function AppShell({
             href="/"
             className="flex items-center gap-2 text-sm font-semibold tracking-tight text-sidebar-foreground"
           >
-            <span className="inline-flex size-5 items-center justify-center rounded bg-primary text-[11px] font-bold text-primary-foreground">
-              ◆
-            </span>
+            <HagglesLogo />
             <span>Haggles</span>
           </Link>
           <button

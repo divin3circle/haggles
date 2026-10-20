@@ -10,7 +10,7 @@
 import { IconCheck, IconCode, IconRobot } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { SandboxBanner } from "@/components/haggles/primitives";
+import { HagglesLogo, SandboxBanner } from "@/components/haggles/primitives";
 import { Button } from "@/components/ui/button";
 import { portalApi } from "@/lib/portal-api";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,10 @@ export default function OnboardingPage() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-xl rounded-lg border border-border bg-card p-6 text-card-foreground">
+          <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
+            <HagglesLogo />
+            <span>Haggles</span>
+          </div>
           <h1 className="text-lg font-semibold tracking-tight">How will you use Haggles?</h1>
           <p className="mt-1 text-xs text-muted-foreground">
             Select one or both roles. You can change this anytime in Account.

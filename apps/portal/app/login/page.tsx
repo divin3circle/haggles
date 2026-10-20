@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SandboxBanner } from "@/components/haggles/primitives";
+import { HagglesLogo, SandboxBanner } from "@/components/haggles/primitives";
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
@@ -39,9 +39,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 text-card-foreground shadow-xs">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="inline-flex size-5 items-center justify-center rounded bg-primary text-[11px] font-bold text-primary-foreground">
-              ◆
-            </span>
+            <HagglesLogo />
             <span>Haggles</span>
           </div>
 

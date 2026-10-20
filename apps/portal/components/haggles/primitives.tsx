@@ -1,7 +1,7 @@
 /**
  * Reusable Haggles Portal design system components (SPEC.md section 11.1).
  *
- * Includes `<Money>`, `<CopyButton>`, `<TruncatedId>`, `<KeyReveal>`, `<StatusBadge>`,
+ * Includes `<HagglesLogo>`, `<Money>`, `<CopyButton>`, `<TruncatedId>`, `<KeyReveal>`, `<StatusBadge>`,
  * `<StatCard>`, `<EmptyState>`, `<CodeTabs>`, `<SandboxBanner>`, `<PolicySummary>`,
  * and `<RelativeDate>`.
  */
@@ -18,6 +18,38 @@ import {
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/**
+ * Renders the theme-aware Haggles `#G` brand mark (`/haggles-light.png` in light mode,
+ * `/haggles-dark.png` in dark mode).
+ *
+ * @example
+ * ```tsx
+ * <HagglesLogo className="h-6" />
+ * ```
+ */
+export function HagglesLogo({
+  className,
+}: {
+  className?: string | undefined;
+}) {
+  return (
+    <span className={cn("inline-flex shrink-0 items-center", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/haggles-light.png"
+        alt=""
+        className="h-6 w-auto rounded-xs object-contain dark:hidden"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/haggles-dark.png"
+        alt=""
+        className="hidden h-6 w-auto rounded-xs object-contain dark:block"
+      />
+    </span>
+  );
+}
 
 /**
  * Formats and displays USD money values using `@haggles/core`'s `formatMoney` with a `$` prefix
@@ -197,9 +229,20 @@ export function StatusBadge({
  * ```
  */
 export function RelativeDate({ iso }: { iso: string | null }) {
+  const [nowMs, setNowMs] = React.useState(0);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => setNowMs(Date.now()), 0);
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => {
+      clearTimeout(t);
+      clearInterval(id);
+    };
+  }, []);
+
   if (!iso) return <span className="text-muted-foreground">Never</span>;
   const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
+  const diffMs = nowMs > 0 ? nowMs - date.getTime() : -1;
   const diffMin = Math.floor(diffMs / 60_000);
   const diffHours = Math.floor(diffMs / 3_600_000);
 
@@ -422,11 +465,10 @@ export function KeyReveal({
   fullKey: string | null;
   onClose: () => void;
 }) {
-  const [confirmed, setConfirmed] = React.useState(false);
-
-  React.useEffect(() => {
-    if (open) setConfirmed(false);
-  }, [open]);
+  const [confirmedForKey, setConfirmedForKey] = React.useState<string | null>(
+    null,
+  );
+  const confirmed = Boolean(fullKey && confirmedForKey === fullKey);
 
   if (!open || !fullKey) return null;
 
@@ -470,7 +512,9 @@ export function KeyReveal({
           <input
             type="checkbox"
             checked={confirmed}
-            onChange={(e) => setConfirmed(e.target.checked)}
+            onChange={(e) =>
+              setConfirmedForKey(e.target.checked ? fullKey : null)
+            }
             className="size-4 rounded border-border accent-primary"
           />
           <span>I&apos;ve stored this key in a safe place</span>

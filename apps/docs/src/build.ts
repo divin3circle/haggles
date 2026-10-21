@@ -46,6 +46,9 @@ function renderPageHtml(page: DocPage, allPages: DocPage[]): string {
   <title>${page.title} — Haggles Docs</title>
   <meta name="description" content="${page.description}" />
   <link rel="icon" href="./favicon.ico" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #111013;
@@ -60,7 +63,7 @@ function renderPageHtml(page: DocPage, allPages: DocPage[]): string {
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--fg);
       line-height: 1.65;

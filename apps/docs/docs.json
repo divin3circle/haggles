@@ -10,6 +10,14 @@
   "icons": {
     "library": "tabler"
   },
+  "fonts": {
+    "heading": {
+      "family": "Space Grotesk"
+    },
+    "body": {
+      "family": "Space Grotesk"
+    }
+  },
   "colors": {
     "primary": "#E08B3E",
     "light": "#F59E0B",
@@ -34,7 +42,8 @@
               "concepts/ledger",
               "concepts/policies",
               "concepts/lifecycle",
-              "concepts/security"
+              "concepts/security",
+              "concepts/assumptions"
             ]
           },
           {

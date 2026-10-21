@@ -32,7 +32,7 @@ sequenceDiagram
     participant PP as PayPal Sandbox (Orders v2 & Payouts v1)
 
     Note over Agent,PP: 1. Pre-funding (One-time via Portal)
-    Agent->>PP: Top up $5–$100 (PayPal Orders v2)
+    Agent->>PP: Top up $5–$200 (PayPal Orders v2)
     PP-->>Fac: Webhook PAYMENT.CAPTURE.COMPLETED
     Fac->>Fac: Post G_PAYPAL + G_PAYPAL_FEES -> W_AVAIL
 
@@ -55,14 +55,9 @@ sequenceDiagram
     PP-->>Fac: Webhook PAYMENT.PAYOUTS-ITEM.SUCCEEDED
 ```
 
-## Honest Assumptions & Known Limitations
+## Why HTTP 402 + Prepaid PayPal Rails?
 
-<Note>
-  **Assumption A1 (Micro-payment Economics):** Charging PayPal Orders directly on every `$0.005` or `$0.02` API call is impossible due to fixed per-transaction fees and human checkout latency. Haggles solves this by separating **funding** (PayPal Orders v2 into a prepaid wallet), **per-call settlement** (sub-cent double-entry ledger postings), and **disbursement** (PayPal Payouts v1 to sellers).
-</Note>
-
-<Warning>
-  **Regulatory Scope (Risk R3):** Holding prepaid balances and paying out third-party sellers in live production can implicate money-transmission or stored-value licensing. This hackathon project runs strictly on **PayPal Sandbox** (`PAYPAL_MODE=sandbox` or `mock`) with hard safety caps (`$100.00` max top-up, `$500.00` max wallet balance, `$5.00` max per call).
-</Warning>
-
-- **Non-Goals (`SPEC.md` § 1.4):** No cryptocurrency, no blockchain, no custom token/coin, no streaming per-token billing in v1, and no public marketplace directory in v1.
+1. **Two-Line Seller Integration:** Protect any Hono or Express route with `@haggles/server`. Unpaid callers receive a standard `402 Payment Required` response with a machine-readable `Haggles-Challenge`.
+2. **Zero-Prompt Agent Payments:** `@haggles/client` wraps `fetch`, verifies the challenge against the caller's client-side ceiling (`maxPricePerCall`), obtains a short-lived Ed25519 JWS payment token (`hgp_...`), and retries once.
+3. **Hard Server-Side Guardrails:** Every agent key (`hgk_test_...`) enforces per-call, daily, and monthly USD caps, plus optional seller and hostname allowlists, inside the same serializable database transaction that locks wallet funds.
+4. **Real PayPal Settlement:** Buyers fund wallets via **PayPal Orders v2**, and sellers receive earnings via **PayPal Payouts v1** (or on-demand in the Seller Studio). See [Assumptions & Limitations](/concepts/assumptions) for the full economic and regulatory design notes.

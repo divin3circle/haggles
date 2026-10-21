@@ -65,14 +65,20 @@ describe("@haggles/docs static site, snippets, llms.txt, and OpenAPI reference (
       logo: { light: string; dark: string };
       favicon: string;
       icons: { library: string };
+      fonts: { heading: { family: string }; body: { family: string } };
       navigation: { tabs: Array<{ groups: Array<{ pages: string[] }> }> };
     };
 
     expect(docsJson.icons.library).toBe("tabler");
+    expect(docsJson.fonts.heading.family).toBe("Space Grotesk");
+    expect(docsJson.fonts.body.family).toBe("Space Grotesk");
     expect(docsJson.logo.light).toBe("/logo/light.png");
     expect(docsJson.logo.dark).toBe("/logo/dark.png");
     expect(fs.existsSync(path.join(docsRoot, "logo/light.png"))).toBe(true);
     expect(fs.existsSync(path.join(docsRoot, "logo/dark.png"))).toBe(true);
+    expect(fs.existsSync(path.join(docsRoot, "concepts/assumptions.mdx"))).toBe(
+      true,
+    );
 
     const allPages = docsJson.navigation.tabs.flatMap((t) =>
       t.groups.flatMap((g) => g.pages),

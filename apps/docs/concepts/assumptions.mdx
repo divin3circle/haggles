@@ -1,0 +1,37 @@
+---
+title: "Assumptions & Limitations"
+description: "Explicit architectural assumptions (A1–A7), protocol non-goals, and regulatory/operational boundaries (SPEC.md §§ 1.4, 2.2, 17.1)."
+icon: "alert-triangle"
+---
+
+Haggles documents its economic, regulatory, and technical assumptions explicitly (`SPEC.md` §§ 1.4, 2.2, 13.2, 17.1).
+
+## Core Architectural Assumptions (`SPEC.md` § 2.2)
+
+<Note>
+  **Assumption A1 (Micro-payment Economics):** Charging PayPal Orders directly on every `$0.005` or `$0.02` API call is impossible due to fixed per-transaction fees and human checkout latency. Haggles solves this by separating **funding** (PayPal Orders v2 into a prepaid wallet), **per-call settlement** (sub-cent double-entry ledger postings), and **disbursement** (PayPal Payouts v1 to sellers).
+</Note>
+
+| # | Assumption | Why It Matters |
+|---|---|---|
+| **A1** | Per-call PayPal Orders are uneconomic below ~$1 due to fixed fees and checkout latency | Justifies the prepaid wallet + double-entry ledger + batched PayPal Payouts architecture |
+| **A2** | PayPal Sandbox Payouts work end-to-end when the business app has Payouts enabled | Verified in `M0` via `scripts/paypal-smoke.ts`; falls back cleanly to labelled `simulated` mode if a sandbox account lacks Payouts permission |
+| **A3** | Sellers and buyers are comfortable signing in with a PayPal account (or sandbox test account) | Avoids building a separate password/KYC stack; uses *Log in with PayPal* OIDC (`payer_id` + verified email) |
+| **A4** | Single-region Postgres (`READ COMMITTED` + explicit row locks) handles target throughput (`>= 150 req/s` authorize+redeem) | Validated by load and concurrency test suites (`docs/performance.md`) |
+| **A5** | HTTP endpoints protected by Haggles are request/response (`GET`, `POST`, etc.) with a price known before the handler runs | Streaming per-token LLM billing is deferred out of v1 |
+| **A6** | Buyers trust the facilitator with their prepaid balance up to the wallet cap (`$500.00`) | Mitigated by hard balance caps (`SPEC.md` § 2.3), append-only double-entry ledger invariants, and signed Ed25519 receipts |
+| **A7** | System clocks on seller servers are within `±5 seconds` of UTC (NTP) | Required for local Ed25519 JWS token expiry (`exp`) verification |
+
+## Regulatory & Operational Boundaries (`SPEC.md` § 17.1)
+
+<Warning>
+  **Regulatory Scope (Risk R3):** Holding prepaid balances and paying out third-party sellers in live production can implicate money-transmission or stored-value licensing depending on jurisdiction. This hackathon build runs strictly on **PayPal Sandbox** (`PAYPAL_MODE=sandbox` or `mock`) with hard safety caps (`$200.00` max top-up, `$500.00` max wallet balance, `$5.00` max per call). Setting `PAYPAL_MODE=live` is blocked at startup unless explicitly unlocked after legal review.
+</Warning>
+
+## Explicit Non-Goals in v1 (`SPEC.md` § 1.4)
+
+- **No cryptocurrency, blockchain, or custom token/coin:** All prices, balances, and payouts are in real **USD** settled on PayPal rails.
+- **No dynamic haggling or multi-round price negotiation in v1:** Each `402` challenge states a fixed USD price for that request.
+- **No streaming per-token billing in v1:** Prices are per HTTP request.
+- **No public marketplace or discovery directory in v1:** Agents call seller URLs they are configured with or discover via tool catalogues.
+- **No multi-currency support in v1:** `USD` only (`1 USD = 1,000,000` micro-dollars).

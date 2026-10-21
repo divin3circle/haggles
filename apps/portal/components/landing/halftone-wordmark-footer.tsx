@@ -282,7 +282,7 @@ const HWF_CSS = `
 .hwf-col a:hover, .hwf-up:hover { opacity: 1; background-size: 100% 1px; }
 .hwf-col a:focus-visible, .hwf-up:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; opacity: 1; }
 .hwf-rule {
-  position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  position: relative; z-index: 1; display: flex; justify-content: flex-end; align-items: center; gap: 16px;
   margin: clamp(20px, 2.8vw, 32px) clamp(20px, 3.4vw, 48px) 0; padding-top: 14px;
   border-top: 1px solid color-mix(in srgb, var(--hwf-ink) 14%, transparent);
   font-family: var(--hwf-sans); font-size: 12px; opacity: .75;
@@ -666,7 +666,6 @@ export default function HalftoneWordmarkFooter({
         ))}
       </div>
       <div className="hwf-rule">
-        <span>Built with PayPal Orders v2, Payouts v1 &amp; Log in with PayPal</span>
         {backToTop ? (
           <button type="button" className="hwf-up" onClick={toTop}>
             <span>Back to top</span>

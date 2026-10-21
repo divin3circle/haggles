@@ -8,7 +8,8 @@
  * 2. Middle card: Soft surface card with floating policy pill badges and a bottom agent prompt card.
  * 3. Right card: Soft surface card with stacked conversational & settlement status cards.
  *
- * Uses theme typography (`font-sans`, zero monospace) and `@tabler/icons-react`.
+ * Uses production-grade `motion/react` viewport reveals (`[0.22, 1, 0.36, 1]`),
+ * theme typography (`font-sans`, zero monospace), and `@tabler/icons-react`.
  */
 
 import {
@@ -19,7 +20,10 @@ import {
   IconShieldCheck,
   IconSparkles,
 } from "@tabler/icons-react";
+import { motion } from "motion/react";
 import { HagglesLogo } from "@/components/haggles/primitives";
+
+const EASE_OUT_EXPO: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const FLOATING_POLICY_PILLS = [
   {
@@ -65,7 +69,13 @@ export function AboutSection() {
       className="mx-auto w-full max-w-6xl px-4 pt-20 pb-12 sm:px-6 sm:pt-28 sm:pb-16"
     >
       {/* Editorial Headline & Lead */}
-      <div className="max-w-2xl">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
+        className="max-w-2xl"
+      >
         <h2
           id="about-heading"
           className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl sm:leading-[1.08]"
@@ -83,17 +93,23 @@ export function AboutSection() {
           backed by prepaid PayPal wallets, sub-cent double-entry accounting,
           and programmable spending guardrails.
         </p>
-      </div>
+      </motion.div>
 
       {/* 3-Column Bento Grid */}
       <div className="mt-10 grid gap-5 lg:grid-cols-3">
         {/* Card 1: Atmospheric Image + Frosted Glass Telemetry Card */}
-        <article className="relative flex min-h-[470px] flex-col justify-between overflow-hidden rounded-3xl border border-border/60 p-6 text-white shadow-sm sm:p-7">
+        <motion.article
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.65, delay: 0.05, ease: EASE_OUT_EXPO }}
+          className="group relative flex min-h-[470px] flex-col justify-between overflow-hidden rounded-3xl border border-border/60 p-6 text-white shadow-sm sm:p-7"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80"
             alt="Warm abstract metallic gradient backdrop"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
             loading="lazy"
           />
           <div
@@ -112,7 +128,7 @@ export function AboutSection() {
           </div>
 
           {/* Frosted Glass Inner Widget */}
-          <div className="relative z-10 mt-8 rounded-2xl border border-white/20 bg-white/12 p-5 backdrop-blur-xl">
+          <div className="relative z-10 mt-8 rounded-2xl border border-white/20 bg-white/12 p-5 backdrop-blur-xl transition-colors duration-300 group-hover:border-white/30 group-hover:bg-white/15">
             <div className="flex items-center gap-3">
               <div className="flex size-9 items-center justify-center rounded-xl bg-white text-neutral-900 shadow-xs">
                 <HagglesLogo className="h-5" />
@@ -174,10 +190,16 @@ export function AboutSection() {
               </div>
             </div>
           </div>
-        </article>
+        </motion.article>
 
         {/* Card 2: Policy-Guarded Autonomy (Floating Pills + Prompt Box) */}
-        <article className="flex min-h-[470px] flex-col justify-between rounded-3xl border border-border/70 bg-muted/40 p-6 sm:p-7 dark:bg-card/60">
+        <motion.article
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.65, delay: 0.14, ease: EASE_OUT_EXPO }}
+          className="flex min-h-[470px] flex-col justify-between rounded-3xl border border-border/70 bg-muted/40 p-6 sm:p-7 dark:bg-card/60"
+        >
           <div>
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
               Policy-Guarded Autonomy
@@ -190,11 +212,20 @@ export function AboutSection() {
 
           {/* Floating Pills Stage */}
           <div className="relative my-6 h-44 w-full" aria-hidden="true">
-            {FLOATING_POLICY_PILLS.map((pill) => (
-              <span
+            {FLOATING_POLICY_PILLS.map((pill, idx) => (
+              <motion.span
                 key={pill.label}
+                initial={{ opacity: 0, scale: 0.94, y: 8 }}
+                whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.22 + idx * 0.06,
+                  ease: EASE_OUT_EXPO,
+                }}
+                whileHover={{ y: -2 }}
                 className={
-                  "absolute inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium shadow-2xs transition-transform duration-300 hover:-translate-y-0.5 " +
+                  "absolute inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium shadow-2xs " +
                   (pill.tone === "tinted"
                     ? "border border-primary/25 bg-primary/10 text-primary "
                     : "border border-border/80 bg-background text-foreground ") +
@@ -203,7 +234,7 @@ export function AboutSection() {
               >
                 <IconShieldCheck className="size-3.5 shrink-0 opacity-80" />
                 <span>{pill.label}</span>
-              </span>
+              </motion.span>
             ))}
           </div>
 
@@ -222,10 +253,16 @@ export function AboutSection() {
               Haggles halts further calls?
             </p>
           </div>
-        </article>
+        </motion.article>
 
         {/* Card 3: PayPal-Backed Settlement (Stacked Conversational Cards) */}
-        <article className="flex min-h-[470px] flex-col justify-between rounded-3xl border border-border/70 bg-muted/40 p-6 sm:p-7 dark:bg-card/60">
+        <motion.article
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.65, delay: 0.23, ease: EASE_OUT_EXPO }}
+          className="flex min-h-[470px] flex-col justify-between rounded-3xl border border-border/70 bg-muted/40 p-6 sm:p-7 dark:bg-card/60"
+        >
           <div>
             <h3 className="text-xl font-semibold tracking-tight text-foreground">
               PayPal-Backed Settlement
@@ -280,7 +317,7 @@ export function AboutSection() {
               </div>
             </div>
           </div>
-        </article>
+        </motion.article>
       </div>
     </section>
   );

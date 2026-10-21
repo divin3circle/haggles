@@ -15,6 +15,7 @@ import {
   IconCopy,
   IconKey,
 } from "@tabler/icons-react";
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -373,8 +374,96 @@ export function EmptyState({
   );
 }
 
+type CodeTokenKind =
+  | "plain"
+  | "keyword"
+  | "string"
+  | "comment"
+  | "number"
+  | "function"
+  | "property";
+
+interface CodeToken {
+  kind: CodeTokenKind;
+  text: string;
+}
+
+const TS_KEYWORDS = new Set([
+  "import",
+  "from",
+  "export",
+  "const",
+  "let",
+  "var",
+  "function",
+  "async",
+  "await",
+  "return",
+  "if",
+  "else",
+  "new",
+  "true",
+  "false",
+  "null",
+  "undefined",
+  "type",
+  "interface",
+]);
+
+const TOKEN_REGEXP =
+  /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][A-Za-z0-9_$]*\b(?=\s*\()|\b[A-Za-z_$][A-Za-z0-9_$]*\b(?=\s*:)|\b[A-Za-z_$][A-Za-z0-9_$]*\b)/gm;
+
+function tokenizeCodeLine(line: string): CodeToken[] {
+  const tokens: CodeToken[] = [];
+  let lastIdx = 0;
+  for (const match of line.matchAll(TOKEN_REGEXP)) {
+    const idx = match.index ?? 0;
+    if (idx > lastIdx) {
+      tokens.push({ kind: "plain", text: line.slice(lastIdx, idx) });
+    }
+    const text = match[0];
+    let kind: CodeTokenKind = "plain";
+    if (text.startsWith("//")) {
+      kind = "comment";
+    } else if (
+      text.startsWith('"') ||
+      text.startsWith("'") ||
+      text.startsWith("`")
+    ) {
+      kind = "string";
+    } else if (/^\d/.test(text)) {
+      kind = "number";
+    } else if (TS_KEYWORDS.has(text)) {
+      kind = "keyword";
+    } else {
+      const after = line.slice(idx + text.length);
+      if (/^\s*\(/.test(after)) {
+        kind = "function";
+      } else if (/^\s*:/.test(after)) {
+        kind = "property";
+      }
+    }
+    tokens.push({ kind, text });
+    lastIdx = idx + text.length;
+  }
+  if (lastIdx < line.length) {
+    tokens.push({ kind: "plain", text: line.slice(lastIdx) });
+  }
+  return tokens;
+}
+
+const TOKEN_CLASS: Record<CodeTokenKind, string> = {
+  plain: "text-foreground/90",
+  keyword: "text-rose-600 dark:text-rose-400 font-medium",
+  string: "text-emerald-700 dark:text-emerald-400",
+  comment: "text-muted-foreground italic",
+  number: "text-amber-700 dark:text-amber-400",
+  function: "text-sky-700 dark:text-sky-400",
+  property: "text-violet-700 dark:text-violet-400",
+};
+
 /**
- * Multi-tab code snippet viewer with copy button (SPEC.md section 11.1).
+ * Multi-tab syntax-highlighted code snippet viewer with animated tab indicator and copy button (SPEC.md section 11.1).
  *
  * @example
  * ```tsx
@@ -386,37 +475,93 @@ export function CodeTabs({
 }: {
   tabs: ReadonlyArray<{ label: string; language?: string | undefined; code: string }>;
 }) {
+  const reactId = React.useId();
   const [activeIdx, setActiveIdx] = React.useState(0);
   const current = tabs[activeIdx] ?? tabs[0];
   if (!current) return null;
 
+  const lines = current.code.split("\n");
+
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-1.5">
-        <div className="flex items-center gap-1" role="tablist">
-          {tabs.map((tab, idx) => (
-            <button
-              key={tab.label}
-              type="button"
-              role="tab"
-              aria-selected={idx === activeIdx}
-              onClick={() => setActiveIdx(idx)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                idx === activeIdx
-                  ? "bg-background text-foreground shadow-2xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
+      <div className="flex items-center justify-between border-b border-border/80 bg-muted/40 px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-1.5 sm:flex" aria-hidden="true">
+            <span className="size-2.5 rounded-full bg-border" />
+            <span className="size-2.5 rounded-full bg-border" />
+            <span className="size-2.5 rounded-full bg-border" />
+          </div>
+          <div className="flex items-center gap-1" role="tablist">
+            {tabs.map((tab, idx) => {
+              const active = idx === activeIdx;
+              return (
+                <button
+                  key={tab.label}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveIdx(idx)}
+                  className={cn(
+                    "relative rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                    active
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {active ? (
+                    <motion.span
+                      layoutId={`code-tab-pill-${reactId}`}
+                      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 rounded-lg border border-border/60 bg-background shadow-2xs"
+                    />
+                  ) : null}
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <CopyButton text={current.code} label={`Copy ${current.label} snippet`} />
       </div>
-      <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-foreground">
-        <code>{current.code}</code>
-      </pre>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.pre
+          key={current.label}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-foreground sm:p-5"
+        >
+          <code>
+            {lines.map((line, lineIdx) => {
+              const tokens = tokenizeCodeLine(line);
+              return (
+                <div key={lineIdx} className="table-row">
+                  <span
+                    aria-hidden="true"
+                    className="table-cell pr-4 text-right text-[11px] text-muted-foreground/45 select-none"
+                  >
+                    {lineIdx + 1}
+                  </span>
+                  <span className="table-cell whitespace-pre">
+                    {tokens.length === 0
+                      ? "\n"
+                      : tokens.map((tok, tokIdx) => (
+                          <span
+                            key={tokIdx}
+                            className={TOKEN_CLASS[tok.kind]}
+                          >
+                            {tok.text}
+                          </span>
+                        ))}
+                  </span>
+                </div>
+              );
+            })}
+          </code>
+        </motion.pre>
+      </AnimatePresence>
     </div>
   );
 }

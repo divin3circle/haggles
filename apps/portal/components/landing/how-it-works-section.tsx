@@ -6,9 +6,9 @@
  * Inspired by clean 2-column interactive step-by-step layouts:
  * - Left: Soft rounded showcase stage containing a central elevated card with the Haggles brand mark
  *   and a 2x2 grid of circular Tabler icon controls (`Paywall`, `Policy`, `Receipt`, `Payouts`)
- *   synced with the active accordion step.
- * - Right: 4-step interactive accordion separated by crisp hairlines, followed by a rounded pill
- *   "Start now" CTA button and a "5 mins to complete steps" time indicator.
+ *   synced with the active accordion step via `motion/react` layout transitions.
+ * - Right: 4-step interactive accordion separated by crisp hairlines with `AnimatePresence`
+ *   height transitions, followed by a rounded pill "Start now" CTA button and a "5 mins to complete steps" indicator.
  *
  * Uses theme typography (`font-sans`, zero monospace) and `@tabler/icons-react`.
  */
@@ -16,16 +16,18 @@
 import {
   IconApi,
   IconChevronDown,
-  IconChevronUp,
   IconClock,
   IconCoin,
   IconReceipt,
   IconShieldLock,
 } from "@tabler/icons-react";
+import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import * as React from "react";
 import { HagglesLogo } from "@/components/haggles/primitives";
 import { cn } from "@/lib/utils";
+
+const EASE_OUT_EXPO: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 interface WorkStep {
   id: number;
@@ -95,7 +97,13 @@ export function HowItWorksSection() {
       className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-24"
     >
       {/* Centered Section Header */}
-      <div className="mx-auto max-w-2xl text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
+        className="mx-auto max-w-2xl text-center"
+      >
         <h2
           id="how-it-works-heading"
           className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl"
@@ -106,12 +114,18 @@ export function HowItWorksSection() {
           From two lines of middleware to automatic PayPal payouts, we&apos;ve
           made agentic commerce effortless.
         </p>
-      </div>
+      </motion.div>
 
       {/* 2-Column Split: Left Visual Stage + Right Accordion */}
       <div className="mt-12 grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
         {/* Left Column: Rounded Stage + Elevated 2x2 Circular Icon Card */}
-        <div className="lg:col-span-5">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.65, delay: 0.05, ease: EASE_OUT_EXPO }}
+          className="lg:col-span-5"
+        >
           <div className="flex items-center justify-center rounded-[2rem] border border-border/60 bg-muted/45 p-8 sm:p-12 dark:bg-card/40">
             <div className="w-full max-w-[300px] rounded-3xl border border-border/70 bg-background px-7 py-8 shadow-sm">
               {/* Brand Header inside the Device Card */}
@@ -139,13 +153,20 @@ export function HowItWorksSection() {
                     >
                       <span
                         className={cn(
-                          "flex size-20 items-center justify-center rounded-full border transition-all duration-300",
+                          "relative flex size-20 items-center justify-center rounded-full border transition-colors duration-300",
                           isSelected
-                            ? "border-primary/40 bg-primary text-primary-foreground shadow-md scale-105"
+                            ? "border-primary/40 text-primary-foreground"
                             : "border-border/80 bg-muted/40 text-muted-foreground shadow-2xs group-hover:border-primary/30 group-hover:text-foreground",
                         )}
                       >
-                        <Icon className="size-8 stroke-[1.7]" />
+                        {isSelected ? (
+                          <motion.span
+                            layoutId="how-it-works-active-circle"
+                            transition={{ duration: 0.38, ease: EASE_OUT_EXPO }}
+                            className="absolute inset-0 rounded-full bg-primary shadow-md"
+                          />
+                        ) : null}
+                        <Icon className="relative z-10 size-8 stroke-[1.7]" />
                       </span>
                       <span
                         className={cn(
@@ -162,16 +183,33 @@ export function HowItWorksSection() {
                 })}
               </div>
 
-              {/* Subtle Live Status Pill at bottom of card */}
-              <div className="mt-7 rounded-xl bg-muted/50 px-3 py-2 text-center text-[11px] font-medium text-muted-foreground">
-                {currentStep.statusNote}
+              {/* Animated Live Status Pill at bottom of card */}
+              <div className="mt-7 overflow-hidden rounded-xl bg-muted/50 px-3 py-2 text-center">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={currentStep.id}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+                    className="text-[11px] font-medium text-muted-foreground"
+                  >
+                    {currentStep.statusNote}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Column: 4-Step Accordion + CTA Bar */}
-        <div className="lg:col-span-7">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.65, delay: 0.14, ease: EASE_OUT_EXPO }}
+          className="lg:col-span-7"
+        >
           <div className="border-t border-border/80">
             {WORK_STEPS.map((step) => {
               const isOpen = step.id === activeStep;
@@ -189,19 +227,30 @@ export function HowItWorksSection() {
                     <span className="text-base font-medium tracking-tight text-foreground sm:text-lg">
                       {step.title}
                     </span>
-                    <span className="shrink-0 text-muted-foreground">
-                      {isOpen ? (
-                        <IconChevronUp className="size-5" />
-                      ) : (
-                        <IconChevronDown className="size-5" />
-                      )}
-                    </span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+                      className="shrink-0 text-muted-foreground"
+                    >
+                      <IconChevronDown className="size-5" />
+                    </motion.span>
                   </button>
-                  {isOpen ? (
-                    <div className="pb-5 pr-8 text-sm leading-relaxed text-muted-foreground">
-                      {step.description}
-                    </div>
-                  ) : null}
+                  <AnimatePresence initial={false}>
+                    {isOpen ? (
+                      <motion.div
+                        key="content"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pb-5 pr-8 text-sm leading-relaxed text-muted-foreground">
+                          {step.description}
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -220,7 +269,7 @@ export function HowItWorksSection() {
               <span>5 mins to complete steps</span>
             </span>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

@@ -3,9 +3,10 @@
 /**
  * Landing Page SDK Showcase & Call-To-Action (`CTA`) Section (`@haggles/portal`).
  *
- * Combines the Seller / Buyer SDK switcher with an editorial CTA banner
+ * Combines the syntax-highlighted Seller / Buyer SDK switcher with an editorial CTA banner
  * that invites developers to sign in with PayPal or explore the live Buyer & Seller Studio.
- * Uses theme typography (`font-sans`) and `@tabler/icons-react`.
+ * Uses production-grade `motion/react` viewport reveals (`[0.22, 1, 0.36, 1]`),
+ * theme typography (`font-sans`), and `@tabler/icons-react`.
  */
 
 import {
@@ -15,8 +16,11 @@ import {
   IconShieldCheck,
   IconWallet,
 } from "@tabler/icons-react";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { CodeTabs } from "@/components/haggles/primitives";
+
+const EASE_OUT_EXPO: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const SELLER_SNIPPET = `import { paywall } from "@haggles/server/hono";
 
@@ -26,6 +30,7 @@ const pay = paywall({
   publicBaseUrl: "https://datasets.example.com",
 });
 
+// Gate any HTTP endpoint behind an Ed25519-signed 402 challenge
 app.get("/datasets/rent-index", pay({ price: "0.03", description: "Metro rent index" }), (c) => {
   return c.json({ city: c.req.query("city"), medianRentUsd: 3180 });
 });`;
@@ -37,6 +42,7 @@ const haggles = createHaggles({
   maxPricePerCall: "0.10",
 });
 
+// Automatically fulfills 402 challenges within your policy caps
 const res = await haggles.fetch("https://datasets.example.com/datasets/rent-index?city=sf");
 const receipt = readReceipt(res); // { paymentId: "pay_01J...", amount: "0.03", ... }`;
 
@@ -59,7 +65,7 @@ const CTA_HIGHLIGHTS = [
 ] as const;
 
 /**
- * Renders the SDK switcher and editorial Call-To-Action banner on the public landing page.
+ * Renders the syntax-highlighted SDK switcher and editorial Call-To-Action banner on the public landing page.
  *
  * @example
  * ```tsx
@@ -74,7 +80,13 @@ export function CtaSection({ docsUrl }: { docsUrl: string }) {
       className="mx-auto w-full max-w-6xl space-y-20 px-4 pt-6 pb-24 sm:px-6 sm:pb-32"
     >
       {/* Drop-in SDKs Block */}
-      <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
+        className="space-y-4"
+      >
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -102,10 +114,16 @@ export function CtaSection({ docsUrl }: { docsUrl: string }) {
             { label: "Buyer (@haggles/client)", code: BUYER_SNIPPET },
           ]}
         />
-      </div>
+      </motion.div>
 
       {/* High-Contrast Editorial CTA Banner */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card p-8 shadow-sm sm:p-12 lg:p-16">
+      <motion.div
+        initial={{ opacity: 0, y: 28 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
+        className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card p-8 shadow-sm sm:p-12 lg:p-16"
+      >
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-primary/12 blur-3xl"
@@ -157,12 +175,20 @@ export function CtaSection({ docsUrl }: { docsUrl: string }) {
 
           {/* Right Column: 3 Crisp Feature Rows */}
           <div className="space-y-3.5 lg:col-span-5">
-            {CTA_HIGHLIGHTS.map((item) => {
+            {CTA_HIGHLIGHTS.map((item, idx) => {
               const Icon = item.icon;
               return (
-                <div
+                <motion.div
                   key={item.label}
-                  className="flex items-start gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 backdrop-blur-xs"
+                  initial={{ opacity: 0, x: 16 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{
+                    duration: 0.55,
+                    delay: 0.15 + idx * 0.08,
+                    ease: EASE_OUT_EXPO,
+                  }}
+                  className="flex items-start gap-4 rounded-2xl border border-border/70 bg-background/80 p-4 backdrop-blur-xs transition-colors hover:border-primary/30"
                 >
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
                     <Icon className="size-5" />
@@ -175,12 +201,12 @@ export function CtaSection({ docsUrl }: { docsUrl: string }) {
                       {item.detail}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 }

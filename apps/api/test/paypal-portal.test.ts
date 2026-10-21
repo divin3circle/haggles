@@ -12,6 +12,7 @@ import {
   loadConfig,
   MockPayPalGateway,
   parseCookies,
+  runWorkerTick,
   SandboxPayPalGateway,
 } from "../src/index.js";
 
@@ -807,5 +808,115 @@ describe("M3: Cross-Tenant IDOR Security Suite (SPEC.md 8.4)", () => {
     }
 
     await app.close();
+  });
+});
+
+describe("M8: Worker Scheduled Jobs & Ledger Balance Invariants (SPEC.md §§ 4.8, 7.2, 8.5, 14.3)", () => {
+  it("releases expired holds, executes Monday 00:00 UTC scheduled payouts, reconciles processing payouts, and preserves ledger balance", async () => {
+    const config = loadConfig({ LOG_LEVEL: "silent", PAYPAL_MODE: "mock" });
+    const paypal = new MockPayPalGateway();
+    const facilitator = await FacilitatorService.create(config, paypal);
+
+    const wallet = facilitator.createWallet("acc_w1", "wal_01J9Z3WORKERTEST00000001");
+    facilitator.creditWalletTopup({
+      walletId: wallet.id,
+      topupId: "top_worker_1",
+      grossAmountMicros: 20_000_000n,
+      paypalFeeMicros: 500_000n,
+    });
+    const seller = facilitator.createSeller({
+      accountId: "acc_s1",
+      sellerId: "slr_01J9Z3WORKERTEST00000001",
+      payoutPaypalPayerId: "PAYER_WORKER_SELLER",
+      payoutEmail: "worker-seller@example.com",
+      payoutMode: "paypal",
+    });
+    const { fullKey: agentKey } = facilitator.createAgentKey({
+      walletId: wallet.id,
+      name: "Worker Agent",
+      perCallMaxMicros: 5_000_000n,
+      dailyMaxMicros: 15_000_000n,
+    });
+    const { fullKey: sellerKey } = facilitator.createSellerKey({
+      sellerId: seller.id,
+      name: "Worker Seller Key",
+    });
+
+    const t0 = new Date("2026-10-19T00:00:00.000Z"); // Monday 00:00 UTC
+    // 1. Authorize a payment that will be redeemed ($2.00)
+    const p1 = await facilitator.authorizePayment({
+      rawAgentKey: agentKey,
+      idempotencyKey: "chl_01J9Z3WORKERP10000000001",
+      now: t0,
+      challengeInput: {
+        protocol: "haggles",
+        version: 1,
+        scheme: "prepaid-usd",
+        challenge_id: "chl_01J9Z3WORKERP10000000001",
+        amount: "2.00",
+        currency: "USD",
+        method: "GET",
+        url: "https://worker.example.com/paid",
+        seller_id: seller.id,
+        facilitator: config.PUBLIC_API_URL,
+        expires_at: new Date(t0.getTime() + 60_000).toISOString(),
+      },
+    });
+    await facilitator.redeemPayment({
+      rawSellerKey: sellerKey,
+      idempotencyKey: "red_w1",
+      paymentId: p1.payment_id,
+      token: p1.token,
+      method: "GET",
+      url: "https://worker.example.com/paid",
+      amount: "2.00",
+      route: "/paid",
+      now: t0,
+    });
+
+    // 2. Authorize a second payment that will expire without redemption ($0.50)
+    await facilitator.authorizePayment({
+      rawAgentKey: agentKey,
+      idempotencyKey: "chl_01J9Z3WORKERP20000000002",
+      now: t0,
+      challengeInput: {
+        protocol: "haggles",
+        version: 1,
+        scheme: "prepaid-usd",
+        challenge_id: "chl_01J9Z3WORKERP20000000002",
+        amount: "0.50",
+        currency: "USD",
+        method: "GET",
+        url: "https://worker.example.com/unredeemed",
+        seller_id: seller.id,
+        facilitator: config.PUBLIC_API_URL,
+        expires_at: new Date(t0.getTime() + 60_000).toISOString(),
+      },
+    });
+
+    // Advance 121 seconds (hold TTL is 120s per SPEC 4.8) and run worker tick with weekly payout sweep enabled
+    const t1 = new Date(t0.getTime() + 121_000);
+    const tick1 = await runWorkerTick(facilitator, {
+      now: t1,
+      runWeeklyPayoutSweep: true,
+      runPayoutReconciliation: false,
+    });
+    expect(tick1.releasedPayments).toBe(1);
+    expect(tick1.scheduledPayoutsCreated).toBe(1);
+    expect(tick1.invariants.ok).toBe(true);
+
+    // Run a second tick with payout reconciliation (MockPayPalGateway marks batch SUCCESS on poll)
+    const tick2 = await runWorkerTick(facilitator, {
+      now: t1,
+      runWeeklyPayoutSweep: false,
+      runPayoutReconciliation: true,
+    });
+    expect(tick2.reconciledPayouts).toBe(1);
+    expect(tick2.invariants.ok).toBe(true);
+
+    const payouts = facilitator.listSellerPayouts(seller.id);
+    expect(payouts).toHaveLength(1);
+    expect(payouts[0]!.status).toBe("succeeded");
+    expect(payouts[0]!.requestedBy).toBe("schedule");
   });
 });

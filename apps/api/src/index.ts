@@ -13,4 +13,5 @@ export * from "./routes/portal.js";
 export * from "./routes/protocol.js";
 export * from "./services/crypto.js";
 export * from "./services/facilitator.js";
+export * from "./worker.js";
 

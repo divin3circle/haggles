@@ -1200,6 +1200,28 @@ export class FacilitatorService {
   }
 
   /**
+   * Runs the weekly scheduled payout sweep for all active sellers whose `S_PENDING >= PAYOUT_MIN_MICROS`
+   * (`SPEC.md` section 7.2 step 1).
+   */
+  async runScheduledPayoutSweep(now: Date = new Date()): Promise<PayoutRecord[]> {
+    const created: PayoutRecord[] = [];
+    for (const seller of this.sellers.values()) {
+      if (seller.status !== "active") continue;
+      const pending = this.ledger.getBalance(sellerPendingAccountId(seller.id));
+      const rounded = floorToCentsMicros(pending > 0n ? pending : 0n);
+      if (rounded >= this.config.PAYOUT_MIN_MICROS) {
+        const payout = await this.requestSellerPayout({
+          sellerId: seller.id,
+          requestedBy: "schedule",
+          now,
+        });
+        created.push(payout);
+      }
+    }
+    return created;
+  }
+
+  /**
    * Verifies and processes an incoming PayPal webhook (`POST /webhooks/paypal`, SPEC.md sections 7.1, 7.2, 8.5).
    *
    * - Verifies signature via `paypal.verifyWebhookSignature`.

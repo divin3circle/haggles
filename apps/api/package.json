@@ -17,7 +17,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "bun --watch src/server.ts",
+    "dev": "PORT=3001 PUBLIC_API_URL=http://localhost:3001 PUBLIC_PORTAL_URL=http://localhost:3000 PAYPAL_MODE=sandbox bun --env-file=../../.env --watch src/server.ts",
     "build": "tsup",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit",

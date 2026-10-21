@@ -732,7 +732,7 @@ export class SandboxPayPalGateway implements PayPalGateway {
       redirect_uri: params.redirectUri,
     });
 
-    const tokenRes = await fetch(`${SANDBOX_API_BASE}/v1/oauth2/token`, {
+    const tokenRes = await this.fetchImpl(`${SANDBOX_API_BASE}/v1/oauth2/token`, {
       method: "POST",
       headers: {
         Authorization: `Basic ${basic}`,
@@ -741,14 +741,19 @@ export class SandboxPayPalGateway implements PayPalGateway {
       body: bodyParams.toString(),
     });
     if (!tokenRes.ok) {
-      throw new Error(`PayPal OIDC token exchange failed with HTTP ${tokenRes.status}`);
+      const errBody = (await tokenRes.json().catch(() => ({}))) as {
+        error?: string;
+        error_description?: string;
+      };
+      const detail = errBody.error_description ?? errBody.error ?? `HTTP ${tokenRes.status}`;
+      throw new Error(`PayPal OIDC token exchange failed (${detail})`);
     }
     const tokenBody = (await tokenRes.json()) as { access_token?: string };
     if (!tokenBody.access_token) {
       throw new Error("PayPal OIDC token response missing access_token");
     }
 
-    const userRes = await fetch(
+    const userRes = await this.fetchImpl(
       `${SANDBOX_API_BASE}/v1/identity/oauth2/userinfo?schema=paypalv1.1`,
       {
         headers: {
@@ -764,6 +769,7 @@ export class SandboxPayPalGateway implements PayPalGateway {
       sub?: string;
       payer_id?: string;
       name?: string;
+      email?: string;
       verified_account?: boolean | string;
       emails?: Array<{ value?: string; primary?: boolean; confirmed?: boolean }>;
     };
@@ -773,11 +779,12 @@ export class SandboxPayPalGateway implements PayPalGateway {
     const primaryConfirmed =
       userInfo.emails?.find((e) => e.primary && e.confirmed)?.value ??
       userInfo.emails?.find((e) => e.primary)?.value ??
-      userInfo.emails?.[0]?.value;
+      userInfo.emails?.[0]?.value ??
+      userInfo.email;
 
     if (!paypalUserId || !paypalPayerId || !primaryConfirmed) {
       throw new Error(
-        "PayPal userinfo response missing required user_id, payer_id, or primary email",
+        "PayPal userinfo response missing required user_id, payer_id, or primary email (ensure Personal Info -> Email and Account Info -> Account status/Payer ID are enabled under Log in with PayPal -> Advanced Options)",
       );
     }
 

@@ -60,9 +60,11 @@ export function buildSessionCookieHeaders(
   sessionToken: string,
   csrfToken: string,
   maxAgeSec: number = 7 * 24 * 60 * 60,
+  secure: boolean = true,
 ): [string, string] {
-  const sessionCookie = `hg_session=${encodeURIComponent(sessionToken)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSec}`;
-  const csrfCookie = `hg_csrf=${encodeURIComponent(csrfToken)}; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSec}`;
+  const secureFlag = secure ? " Secure;" : "";
+  const sessionCookie = `hg_session=${encodeURIComponent(sessionToken)}; HttpOnly;${secureFlag} SameSite=Lax; Path=/; Max-Age=${maxAgeSec}`;
+  const csrfCookie = `hg_csrf=${encodeURIComponent(csrfToken)};${secureFlag} SameSite=Lax; Path=/; Max-Age=${maxAgeSec}`;
   return [sessionCookie, csrfCookie];
 }
 
@@ -259,12 +261,17 @@ export async function registerPortalRoutes(
     },
     async (request, reply) => {
       const state = randomBytes(24).toString("base64url");
-      const redirectUri = `${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}/portal/v1/auth/paypal/callback`;
+      const redirectUri =
+        config.PAYPAL_OIDC_REDIRECT_URI ??
+        `${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}/portal/v1/auth/paypal/callback`;
       const authorizeUrl = facilitator.buildPayPalAuthorizeUrl(state, redirectUri);
+      const secureCookie =
+        config.PUBLIC_PORTAL_URL.startsWith("https://") || config.NODE_ENV !== "development";
+      const secureFlag = secureCookie ? " Secure;" : "";
 
       reply.header(
         "set-cookie",
-        `hg_oauth_state=${encodeURIComponent(state)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`,
+        `hg_oauth_state=${encodeURIComponent(state)}; HttpOnly;${secureFlag} SameSite=Lax; Path=/; Max-Age=600`,
       );
 
       if (request.headers.accept?.includes("application/json")) {
@@ -275,7 +282,7 @@ export async function registerPortalRoutes(
   );
 
   app.get<{
-    Querystring: { code?: string; state?: string };
+    Querystring: { code?: string; state?: string; error?: string; error_description?: string };
   }>(
     "/portal/v1/auth/paypal/callback",
     {
@@ -287,75 +294,99 @@ export async function registerPortalRoutes(
         querystring: Type.Object({
           code: Type.Optional(Type.String()),
           state: Type.Optional(Type.String()),
+          error: Type.Optional(Type.String()),
+          error_description: Type.Optional(Type.String()),
         }),
       },
     },
     async (request, reply) => {
-      const { code, state } = request.query;
-      if (!code || !state) {
-        throw new HagglesError("Missing OAuth2 code or state parameter.", {
-          code: "unauthorized",
-          status: 401,
+      const wantsJson = Boolean(request.headers.accept?.includes("application/json"));
+      const portalBase = config.PUBLIC_PORTAL_URL.replace(/\/$/, "");
+      const secureCookie =
+        config.PUBLIC_PORTAL_URL.startsWith("https://") || config.NODE_ENV !== "development";
+      const secureFlag = secureCookie ? " Secure;" : "";
+
+      try {
+        const { code, state, error, error_description } = request.query;
+        if (error) {
+          throw new HagglesError(error_description || `PayPal returned OAuth error: ${error}`, {
+            code: "unauthorized",
+            status: 401,
+          });
+        }
+        if (!code || !state) {
+          throw new HagglesError("Missing OAuth2 code or state parameter.", {
+            code: "unauthorized",
+            status: 401,
+          });
+        }
+
+        const cookies = parseCookies(request.headers.cookie);
+        const cookieState = cookies.hg_oauth_state;
+        if (!cookieState) {
+          throw new HagglesError("Missing OAuth2 state cookie.", {
+            code: "unauthorized",
+            status: 401,
+          });
+        }
+
+        const a = Buffer.from(cookieState, "utf8");
+        const b = Buffer.from(state, "utf8");
+        if (a.byteLength !== b.byteLength || !timingSafeEqual(a, b)) {
+          throw new HagglesError("OAuth2 state parameter mismatch.", {
+            code: "unauthorized",
+            status: 401,
+          });
+        }
+
+        const redirectUri =
+          config.PAYPAL_OIDC_REDIRECT_URI ?? `${portalBase}/portal/v1/auth/paypal/callback`;
+        const loginResult = await facilitator.loginWithPayPalCode({
+          code,
+          redirectUri,
+          userAgent: request.headers["user-agent"],
+          ip: request.ip,
         });
+
+        const [sessionCookie, csrfCookie] = buildSessionCookieHeaders(
+          loginResult.sessionToken,
+          loginResult.csrfToken,
+          7 * 24 * 60 * 60,
+          secureCookie,
+        );
+        const clearStateCookie = `hg_oauth_state=; HttpOnly;${secureFlag} SameSite=Lax; Path=/; Max-Age=0`;
+        reply.header("set-cookie", [sessionCookie, csrfCookie, clearStateCookie]);
+
+        const nextPath =
+          !loginResult.account.isBuyer && !loginResult.account.isSeller
+            ? "/onboarding"
+            : loginResult.account.isBuyer
+              ? "/buy"
+              : "/sell";
+
+        if (wantsJson) {
+          return {
+            account: {
+              id: loginResult.account.id,
+              email: loginResult.account.email,
+              display_name: loginResult.account.displayName,
+              paypal_payer_id: loginResult.account.paypalPayerId,
+              paypal_verified_account: loginResult.account.paypalVerifiedAccount,
+              is_buyer: loginResult.account.isBuyer,
+              is_seller: loginResult.account.isSeller,
+            },
+            is_new_account: loginResult.isNewAccount,
+            redirect_to: nextPath,
+          };
+        }
+        return reply.redirect(`${portalBase}${nextPath}`);
+      } catch (err) {
+        if (!wantsJson && request.headers.accept?.includes("text/html")) {
+          const msg = err instanceof Error ? err.message : "PayPal sign-in failed.";
+          return reply.redirect(`${portalBase}/login?error=${encodeURIComponent(msg)}`);
+        }
+        throw err;
       }
-
-      const cookies = parseCookies(request.headers.cookie);
-      const cookieState = cookies.hg_oauth_state;
-      if (!cookieState) {
-        throw new HagglesError("Missing OAuth2 state cookie.", {
-          code: "unauthorized",
-          status: 401,
-        });
-      }
-
-      const a = Buffer.from(cookieState, "utf8");
-      const b = Buffer.from(state, "utf8");
-      if (a.byteLength !== b.byteLength || !timingSafeEqual(a, b)) {
-        throw new HagglesError("OAuth2 state parameter mismatch.", {
-          code: "unauthorized",
-          status: 401,
-        });
-      }
-
-      const redirectUri = `${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}/portal/v1/auth/paypal/callback`;
-      const loginResult = await facilitator.loginWithPayPalCode({
-        code,
-        redirectUri,
-        userAgent: request.headers["user-agent"],
-        ip: request.ip,
-      });
-
-      const [sessionCookie, csrfCookie] = buildSessionCookieHeaders(
-        loginResult.sessionToken,
-        loginResult.csrfToken,
-      );
-      const clearStateCookie =
-        "hg_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0";
-      reply.header("set-cookie", [sessionCookie, csrfCookie, clearStateCookie]);
-
-      const nextPath =
-        !loginResult.account.isBuyer && !loginResult.account.isSeller
-          ? "/onboarding"
-          : loginResult.account.isBuyer
-            ? "/buy"
-            : "/sell";
-
-      if (request.headers.accept?.includes("application/json")) {
-        return {
-          account: {
-            id: loginResult.account.id,
-            email: loginResult.account.email,
-            display_name: loginResult.account.displayName,
-            paypal_payer_id: loginResult.account.paypalPayerId,
-            paypal_verified_account: loginResult.account.paypalVerifiedAccount,
-            is_buyer: loginResult.account.isBuyer,
-            is_seller: loginResult.account.isSeller,
-          },
-          is_new_account: loginResult.isNewAccount,
-          redirect_to: nextPath,
-        };
-      }
-      return reply.redirect(`${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}${nextPath}`);
     },
   );
 

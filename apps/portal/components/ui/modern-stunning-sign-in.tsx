@@ -3,10 +3,10 @@
  * composed from modular {@link AuthShell} and {@link SignInCard} components (`SPEC.md` section 11.3).
  */
 
-"use client";
+"use client"
 
-import { AuthShell } from "@/components/auth/auth-shell";
-import { SignInCard } from "@/components/auth/sign-in-card";
+import { AuthShell } from "@/components/auth/auth-shell"
+import { SignInCard } from "@/components/auth/sign-in-card"
 
 /**
  * Full-page frosted-glass Sign-In experience adapted for Haggles' Log in with PayPal flow.
@@ -26,7 +26,7 @@ const SignIn1 = () => {
       subtitle={
         <>
           Connect your PayPal account for identity, buyer wallet top-ups, and
-          automatic seller payouts via <code className="font-mono">payer_id</code>.
+          automatic seller payouts.
         </>
       }
       maxWidthClassName="max-w-md"
@@ -35,9 +35,9 @@ const SignIn1 = () => {
     >
       <SignInCard />
     </AuthShell>
-  );
-};
+  )
+}
 
-export { SignIn1 };
+export { SignIn1 }
 
-export default SignIn1;
+export default SignIn1

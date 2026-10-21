@@ -5,7 +5,7 @@
  * Log in with PayPal (OpenID Connect) flow and instant Sandbox Demo Account preview.
  */
 
-"use client";
+"use client"
 
 import {
   IconArrowRight,
@@ -13,10 +13,11 @@ import {
   IconPlayerPlay,
   IconShieldCheck,
   IconWallet,
-} from "@tabler/icons-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import * as React from "react";
+} from "@tabler/icons-react"
+import Image from "next/image"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import * as React from "react"
 
 const CAPABILITY_PILLS = [
   {
@@ -27,9 +28,10 @@ const CAPABILITY_PILLS = [
   {
     icon: IconWallet,
     title: "Unified buyer & seller rails",
-    detail: "Top up agent wallets via Orders v2 and receive Payouts v1 automatically.",
+    detail:
+      "Top up agent wallets via Orders v2 and receive Payouts v1 automatically.",
   },
-];
+]
 
 /**
  * Interactive sign-in card body for `/login`.
@@ -42,57 +44,75 @@ const CAPABILITY_PILLS = [
  * ```
  */
 export function SignInCard() {
-  const router = useRouter();
-  const [loadingPayPal, setLoadingPayPal] = React.useState(false);
-  const [error, setError] = React.useState("");
+  const router = useRouter()
+  const [loadingPayPal, setLoadingPayPal] = React.useState(false)
+  const [error, setError] = React.useState("")
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const errParam = params.get("error")
+    if (errParam) {
+      setError(errParam)
+    }
+  }, [])
 
   const handlePayPalLogin = async () => {
-    setError("");
-    setLoadingPayPal(true);
+    setError("")
+    setLoadingPayPal(true)
     try {
       const res = await fetch("/portal/v1/auth/paypal/start", {
         headers: { accept: "application/json" },
-      });
+        credentials: "include",
+      })
       if (res.ok) {
-        const data = (await res.json()) as { authorize_url?: string };
+        const data = (await res.json()) as { authorize_url?: string }
         if (data.authorize_url && !data.authorize_url.includes("client_id=&")) {
-          window.location.href = data.authorize_url;
-          return;
+          window.location.href = data.authorize_url
+          return
         }
       }
     } catch {
       // Fallback to sandbox onboarding flow when running in mock/offline mode
     } finally {
-      setLoadingPayPal(false);
+      setLoadingPayPal(false)
     }
-    router.push("/onboarding");
-  };
+    router.push("/onboarding")
+  }
 
   return (
     <div className="flex w-full flex-col gap-5">
       {/* Capability highlights (replaces email/password inputs with passwordless OIDC context) */}
       <div className="flex flex-col gap-2.5">
-        {CAPABILITY_PILLS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.title}
-              className="flex items-start gap-3 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-left transition-colors dark:border-white/10 dark:bg-white/[0.05]"
-            >
-              <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <Icon className="size-4" />
-              </span>
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-foreground">
-                  {item.title}
-                </div>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                  {item.detail}
-                </p>
-              </div>
-            </div>
-          );
-        })}
+        {/* {CAPABILITY_PILLS.map((item) => { */}
+        {/*   const Icon = item.icon */}
+        {/*   return ( */}
+        {/*     <div */}
+        {/*       key={item.title} */}
+        {/*       className="flex items-start gap-3 rounded-2xl border border-border/70 bg-muted/40 px-4 py-3 text-left transition-colors dark:border-white/10 dark:bg-white/[0.05]" */}
+        {/*     > */}
+        {/*       <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary"> */}
+        {/*         <Icon className="size-4" /> */}
+        {/*       </span> */}
+        {/*       <div className="min-w-0"> */}
+        {/*         <div className="text-xs font-semibold text-foreground"> */}
+        {/*           {item.title} */}
+        {/*         </div> */}
+        {/*         <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground"> */}
+        {/*           {item.detail} */}
+        {/*         </p> */}
+        {/*       </div> */}
+        {/*     </div> */}
+        {/*   ) */}
+        {/* })} */}
+        <div className="flex w-full items-center justify-center">
+          <Image
+            src={"/signin2.png"}
+            height={500}
+            width={500}
+            alt="sigin"
+            className="size-44"
+          />
+        </div>
 
         {error ? (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2 text-left text-xs text-destructive">
@@ -130,15 +150,15 @@ export function SignInCard() {
       </div>
 
       {/* OIDC scope & environment footer */}
-      <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-2.5 text-center text-[11px] leading-relaxed text-muted-foreground dark:border-white/8 dark:bg-white/[0.03]">
-        <span className="font-medium text-foreground">Sandbox OIDC:</span>{" "}
-        Requests{" "}
-        <code className="rounded bg-background/70 px-1 py-0.5 text-[10px] text-foreground">
-          openid profile email paypalattributes
-        </code>
-        . No real money moves.
-      </div>
-
+      {/* <div className="rounded-2xl border border-border/60 bg-muted/30 px-4 py-2.5 text-center text-[11px] leading-relaxed text-muted-foreground dark:border-white/8 dark:bg-white/[0.03]"> */}
+      {/*   <span className="font-medium text-foreground">Sandbox OIDC:</span>{" "} */}
+      {/*   Requests{" "} */}
+      {/*   <code className="rounded bg-background/70 px-1 py-0.5 text-[10px] text-foreground"> */}
+      {/*     openid profile email paypalattributes */}
+      {/*   </code> */}
+      {/*   . No real money moves. */}
+      {/* </div> */}
+      {/**/}
       <div className="flex items-center justify-between pt-1 text-xs text-muted-foreground">
         <span>New to Haggles?</span>
         <Link
@@ -149,5 +169,5 @@ export function SignInCard() {
         </Link>
       </div>
     </div>
-  );
+  )
 }

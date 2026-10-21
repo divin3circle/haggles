@@ -44,6 +44,17 @@ export async function startServer(): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
 
   await app.listen({ port: config.PORT, host: config.HOST });
+  const redirectUri =
+    config.PAYPAL_OIDC_REDIRECT_URI ??
+    `${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}/portal/v1/auth/paypal/callback`;
+  app.log.info(
+    {
+      paypal_mode: config.PAYPAL_MODE,
+      portal_url: config.PUBLIC_PORTAL_URL,
+      oidc_redirect_uri: redirectUri,
+    },
+    "Haggles API server ready",
+  );
 }
 
 if (import.meta.main) {

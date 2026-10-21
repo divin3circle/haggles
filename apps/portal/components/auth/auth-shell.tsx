@@ -5,17 +5,17 @@
  * circular brand emblem, and developer social proof footer used by `/login` and `/onboarding`.
  */
 
-"use client";
+"use client"
 
-import { IconArrowLeft, IconMoon, IconSun } from "@tabler/icons-react";
-import { motion } from "motion/react";
-import Link from "next/link";
-import { useTheme } from "next-themes";
-import * as React from "react";
-import { HagglesLogo, SandboxBanner } from "@/components/haggles/primitives";
-import { cn } from "@/lib/utils";
+import { IconArrowLeft, IconMoon, IconSun } from "@tabler/icons-react"
+import { motion } from "motion/react"
+import Link from "next/link"
+import { useTheme } from "next-themes"
+import * as React from "react"
+import { HagglesLogo, SandboxBanner } from "@/components/haggles/primitives"
+import { cn } from "@/lib/utils"
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_OUT_EXPO: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
 const DEVELOPER_AVATARS = [
   {
@@ -34,26 +34,26 @@ const DEVELOPER_AVATARS = [
     src: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80",
     alt: "Research Developer",
   },
-];
+]
 
 /**
  * Props for {@link AuthShell}.
  */
 export interface AuthShellProps {
   /** Card title displayed below the circular Haggles emblem. */
-  title: string;
+  title: string
   /** Subtitle or description displayed beneath the title. */
-  subtitle?: React.ReactNode;
+  subtitle?: React.ReactNode
   /** Optional eyebrow pill rendered above the title. */
-  badge?: string;
+  badge?: string
   /** Max-width utility class for the frosted glass card (defaults to `max-w-md`). */
-  maxWidthClassName?: string;
+  maxWidthClassName?: string
   /** Back link target and label in the top bar. */
-  backHref?: string;
+  backHref?: string
   /** Label for the back link in the top bar. */
-  backLabel?: string;
+  backLabel?: string
   /** Card body content. */
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 /**
@@ -78,14 +78,14 @@ export function AuthShell({
   backLabel = "Back to home",
   children,
 }: AuthShellProps) {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    setMounted(true);
-  }, []);
+    setMounted(true)
+  }, [])
 
-  const isDark = !mounted || resolvedTheme === "dark";
+  const isDark = !mounted || resolvedTheme === "dark"
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-background font-sans text-foreground selection:bg-primary/20">
@@ -137,7 +137,7 @@ export function AuthShell({
           className={cn(
             "relative w-full rounded-3xl border border-border/80 bg-gradient-to-b from-card/95 via-card/90 to-muted/40 p-7 shadow-2xl backdrop-blur-xl sm:p-9",
             "dark:border-white/10 dark:bg-gradient-to-r dark:from-white/[0.08] dark:to-[#121212]/95",
-            maxWidthClassName,
+            maxWidthClassName
           )}
         >
           {/* Top specular highlight hairline */}
@@ -147,16 +147,7 @@ export function AuthShell({
           />
 
           <div className="flex flex-col items-center text-center">
-            {/* Circular logo emblem */}
-            <div className="mb-5 flex size-13 items-center justify-center rounded-full border border-border/80 bg-primary/10 text-primary shadow-lg dark:border-white/15 dark:bg-white/10 dark:text-foreground">
-              <HagglesLogo className="size-6" />
-            </div>
-
-            {badge ? (
-              <span className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-0.5 text-[11px] font-medium text-primary">
-                {badge}
-              </span>
-            ) : null}
+            <HagglesLogo className="size-16" />
 
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {title}
@@ -199,5 +190,5 @@ export function AuthShell({
         </motion.div>
       </main>
     </div>
-  );
+  )
 }

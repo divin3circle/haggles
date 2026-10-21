@@ -1,0 +1,25 @@
+---
+title: "Self-Hosting the Facilitator"
+description: "Run Haggles locally with Docker Compose & Bun or deploy to Render via the root render.yaml Blueprint."
+---
+
+## Local Development (`docker compose` + `bun`)
+
+```bash
+docker compose up -d          # Starts PostgreSQL 16 + Redis 7
+bun install
+bun run db:migrate            # Applies 17 tables + deferred double-entry balance trigger
+bun run seed                  # Seeds buyer wallet ($25), 2 sellers, and sample payments
+bun run dev:api               # Starts Facilitator API on http://localhost:3001
+bun run dev:portal            # Starts Next.js Portal on http://localhost:3000
+```
+
+## Deploying on Render (`render.yaml`)
+
+The repository root includes a schema-validated `render.yaml` Blueprint that provisions:
+- `haggles-db` (PostgreSQL 16)
+- `haggles-kv` (Render Key Value / Redis)
+- `haggles-api` (Fastify Facilitator & Portal API)
+- `haggles-worker` (`pg-boss` background jobs)
+- `haggles-portal` (Next.js 16 Portal)
+- `haggles-docs` (Static Documentation Site)

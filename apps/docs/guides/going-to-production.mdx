@@ -1,0 +1,15 @@
+---
+title: "Going to Production"
+description: "Checklist for moving beyond the PayPal Sandbox hackathon environment, including regulatory review (R3) and PayPal live app approval (R2)."
+---
+
+<Warning>
+  **Regulatory Notice (`SPEC.md` Risk R3):** Holding prepaid balances on behalf of buyers and disbursing payouts to third-party sellers in live USD may constitute money transmission or stored-value issuance depending on jurisdiction. Do not enable `PAYPAL_MODE=live` without legal counsel or a licensed banking/payment partner.
+</Warning>
+
+## Production Readiness Checklist
+
+1. **Legal & Licensing Review (R3):** Obtain money-transmission counsel or partner with a licensed financial institution before accepting live stored-value funds.
+2. **PayPal Live App Review (R2):** Submit your PayPal REST application for live review of *Log in with PayPal* (`openid`, `email`, `https://uri.paypal.com/services/paypalattributes`) and live *PayPal Payouts v1*.
+3. **Per-Environment Webhook ID:** Register a dedicated live webhook in the PayPal Developer Dashboard and set `PAYPAL_WEBHOOK_ID` for that environment.
+4. **Always-On Infrastructure (R5):** Deploy `haggles-api`, `haggles-worker`, `haggles-portal`, and PostgreSQL 16 on paid plans so free-tier spin-downs or 30-day DB expirations never affect production traffic.

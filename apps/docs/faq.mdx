@@ -1,0 +1,16 @@
+---
+title: "FAQ · Changelog · Contributing"
+description: "Frequently asked questions, release changelog, and contribution guidelines."
+---
+
+<AccordionGroup>
+  <Accordion title="Why not charge PayPal Orders on every API call?">
+    PayPal Orders require human approval and carry per-transaction fees that exceed the price of a `$0.005` API call. Pre-funding a wallet (`$5.00`–`$100.00`) via PayPal Orders v2 lets autonomous AI agents settle micro-dollar HTTP 402 calls in milliseconds on the internal double-entry ledger, while sellers cash out via PayPal Payouts v1.
+  </Accordion>
+  <Accordion title="What happens if a seller's server returns HTTP 500 after redeeming a payment?">
+    `@haggles/server` automatically calls `POST /v1/payments/:id/refund` in the background, reversing both the seller's 95% net credit and Haggles's 5% platform fee back to the buyer's `W_AVAIL` balance.
+  </Accordion>
+  <Accordion title="How are sub-cent micro-dollar balances paid out to sellers?">
+    PayPal Payouts v1 accepts whole-cent USD amounts (`$0.01` increments). Payout sweeps transfer `floor(pending / 10_000) * 10_000` micros and keep any sub-cent dust (`< $0.01`) in `S_PENDING` for the next payout.
+  </Accordion>
+</AccordionGroup>

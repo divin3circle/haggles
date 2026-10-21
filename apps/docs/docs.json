@@ -1,0 +1,80 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Haggles",
+  "colors": {
+    "primary": "#E08B3E",
+    "light": "#F59E0B",
+    "dark": "#C26D23"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart-sell",
+              "quickstart-buy"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/ledger",
+              "concepts/policies",
+              "concepts/lifecycle",
+              "concepts/security"
+            ]
+          },
+          {
+            "group": "Protocol Reference",
+            "pages": [
+              "protocol/wire-format",
+              "protocol/errors"
+            ]
+          },
+          {
+            "group": "Guides & Operations",
+            "pages": [
+              "guides/paywall-middleware",
+              "guides/ai-sdk-agent",
+              "guides/going-to-production",
+              "operations/self-hosting",
+              "operations/runbook",
+              "faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDK & API Reference",
+        "groups": [
+          {
+            "group": "TypeScript SDKs",
+            "pages": [
+              "sdk/core",
+              "sdk/client",
+              "sdk/server"
+            ]
+          },
+          {
+            "group": "OpenAPI Specification",
+            "pages": [
+              "api-reference/overview"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "openapi": "openapi.json",
+  "footer": {
+    "socials": {
+      "github": "https://github.com/haggles/haggles"
+    }
+  }
+}

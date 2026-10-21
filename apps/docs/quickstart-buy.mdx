@@ -1,0 +1,45 @@
+---
+title: "Quickstart: Buy (5 minutes)"
+description: "Fund a prepaid wallet via PayPal Orders v2, create a policy-capped agent key, and pay HTTP 402 challenges automatically."
+---
+
+<Steps>
+  <Step title="Fund your prepaid wallet">
+    Open **Buy → Wallet** in the Haggles Portal and click **Add funds**. Choose a preset (`$5`, `$10`, `$25`, `$50`) and complete checkout via PayPal Sandbox Orders v2.
+  </Step>
+  <Step title="Issue a policy-capped Agent Key">
+    Open **Buy → Agent keys** and click **Create key**. Configure your server-enforced guardrails:
+    - **Per-call max:** `$0.10`
+    - **Daily max:** `$5.00`
+    - **Monthly max / Allowed hosts / Allowed sellers:** optional
+    Save your `HAGGLES_KEY` (`hgk_test_...`) from the show-once dialog.
+  </Step>
+  <Step title="Wrap fetch with @haggles/client">
+    Install `@haggles/client`:
+    ```bash
+    bun add @haggles/client @haggles/core
+    ```
+  </Step>
+</Steps>
+
+```ts apps/docs/snippets/quickstart-buy.ts
+import { createHaggles, readReceipt } from "@haggles/client";
+
+export async function runBuyerQuickstart(): Promise<void> {
+  const haggles = createHaggles({
+    agentKey: process.env.HAGGLES_KEY!,
+    maxPricePerCall: "0.10",
+    onPayment: (event) => {
+      console.log(`Paid $${event.amount} to ${event.sellerId} (${event.paymentId})`);
+    },
+  });
+
+  const response = await haggles.fetch(
+    "https://datasets.example.com/datasets/rent-index?city=austin",
+  );
+  const receipt = readReceipt(response);
+  const data: unknown = await response.json();
+
+  console.log("Receipt:", receipt?.paymentId, "Data:", data);
+}
+```

@@ -1,0 +1,18 @@
+---
+title: "OpenAPI 3.1 Specification"
+description: "Interactive OpenAPI reference for all Facilitator (/v1/*) and Portal (/portal/v1/*) routes."
+---
+
+Mintlify automatically generates interactive API Playground pages from [`/openapi.json`](/openapi.json) declared in `docs.json` and `mint.json`.
+
+- **Protocol Facilitator Endpoints (`/v1/*`):**
+  - `POST /v1/payments` — Authorize an HTTP 402 challenge and mint an Ed25519 JWS token
+  - `POST /v1/payments/{id}/redeem` — Redeem a token and capture funds into `S_PENDING` + `G_FEES`
+  - `POST /v1/payments/{id}/refund` — Full refund within 24 hours
+  - `POST /v1/payments/{id}/release` — Release an unfulfilled authorization hold
+  - `GET /v1/wallet` — Query wallet balance and remaining agent-key allowances
+  - `GET /.well-known/jwks.json` — Public Ed25519 JWKS
+- **Portal Endpoints (`/portal/v1/*`):**
+  - Auth (`/portal/v1/auth/paypal/start`, `/portal/v1/auth/paypal/callback`, `/portal/v1/auth/logout`, `/portal/v1/me`)
+  - Buyer (`/portal/v1/buyer/summary`, `/portal/v1/buyer/topups`, `/portal/v1/buyer/keys`, `/portal/v1/buyer/payments`)
+  - Seller (`/portal/v1/seller/summary`, `/portal/v1/seller/endpoints`, `/portal/v1/seller/calls`, `/portal/v1/seller/payouts`, `/portal/v1/seller/keys`)

@@ -1,0 +1,18 @@
+---
+title: "Backups, Rotating Keys & Incident Basics"
+description: "Operational runbook for Ed25519 JWKS rotation, seller key rotation, and ledger invariant incidents."
+---
+
+## Ed25519 JWS Signing Key Rotation
+
+The facilitator serves all `active` and `verify_only` public keys at `GET /.well-known/jwks.json` (`Cache-Control: public, max-age=300`).
+1. Insert a new `active` Ed25519 key encrypted with `AES-256-GCM` under `MASTER_KEY`.
+2. Move the previous key to `verify_only` for at least 10 minutes so all 60-second in-flight payment tokens verify cleanly.
+3. Transition old keys to `retired`.
+
+## Zero-Downtime Seller Key Rotation
+
+Each seller can hold up to **2 active seller keys** (`hgs_<env>_...`) at the same time:
+1. Create a second key in **Sell → Seller keys**.
+2. Roll your middleware deployment with the new `HAGGLES_SELLER_KEY`.
+3. Revoke the old key.

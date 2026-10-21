@@ -1,0 +1,40 @@
+---
+title: "Headers, Challenge, Token & Receipt"
+description: "Normative wire protocol headers, URL canonicalization rules, Ed25519 JWS claims, and test vectors (SPEC.md § 4)."
+---
+
+## HTTP Wire Headers
+
+| Header | Direction | Format |
+|---|---|---|
+| `WWW-Authenticate` | Seller → Buyer (`402`) | `Haggles challenge="<base64url(JSON)>"` |
+| `Haggles-Challenge` | Seller → Buyer (`402`) | `<base64url(JSON)>` |
+| `Haggles-Payment` | Buyer → Seller (Retry) | Compact Ed25519 JWS (`typ: "haggles-pay+jwt"`) |
+| `Haggles-Receipt` | Seller → Buyer (`2xx`) | Compact Ed25519 JWS (`typ: "haggles-receipt+jwt"`) |
+
+## Challenge JSON Payload (`SPEC.md` § 4.2)
+
+```json
+{
+  "protocol": "haggles",
+  "version": 1,
+  "scheme": "prepaid-usd",
+  "facilitator": "https://api.haggles.example.com",
+  "seller_id": "slr_01J9Y8K4M5N6P7Q8R9S0T1U2V3",
+  "amount": "0.02",
+  "currency": "USD",
+  "method": "GET",
+  "url": "https://poems.example.com/poems/42",
+  "challenge_id": "chl_01J9Z3K4M5N6P7Q8R9S0T1U2V3",
+  "expires_at": "2026-10-06T12:01:00Z",
+  "description": "One poem"
+}
+```
+
+## URL Canonicalization Rules (`SPEC.md` § 4.3)
+
+1. Lowercase scheme (`http` or `https`) and lowercase ASCII/punycode host.
+2. Strip default port (`:80` for `http`, `:443` for `https`).
+3. Strip URL `#fragment`.
+4. Normalize empty path to `/`.
+5. Sort query parameters lexicographically by UTF-8 key, then value.

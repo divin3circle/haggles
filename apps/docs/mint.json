@@ -1,0 +1,86 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Haggles",
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#E08B3E",
+    "light": "#F59E0B",
+    "dark": "#C26D23",
+    "anchors": {
+      "from": "#E08B3E",
+      "to": "#F59E0B"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Portal",
+      "url": "http://localhost:3000"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "GitHub",
+    "url": "https://github.com/haggles/haggles"
+  },
+  "tabs": [
+    {
+      "name": "SDK & API Reference",
+      "url": "sdk"
+    },
+    {
+      "name": "API Playground",
+      "url": "api-reference"
+    }
+  ],
+  "openapi": ["/openapi.json"],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart-sell",
+        "quickstart-buy"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/ledger",
+        "concepts/policies",
+        "concepts/lifecycle",
+        "concepts/security"
+      ]
+    },
+    {
+      "group": "Protocol Reference",
+      "pages": [
+        "protocol/wire-format",
+        "protocol/errors"
+      ]
+    },
+    {
+      "group": "Guides & Operations",
+      "pages": [
+        "guides/paywall-middleware",
+        "guides/ai-sdk-agent",
+        "guides/going-to-production",
+        "operations/self-hosting",
+        "operations/runbook",
+        "faq"
+      ]
+    },
+    {
+      "group": "TypeScript SDKs",
+      "pages": [
+        "sdk/core",
+        "sdk/client",
+        "sdk/server"
+      ]
+    },
+    {
+      "group": "OpenAPI Reference",
+      "pages": [
+        "api-reference/overview"
+      ]
+    }
+  ]
+}

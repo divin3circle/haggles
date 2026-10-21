@@ -56,4 +56,32 @@ describe("@haggles/docs static site, snippets, llms.txt, and OpenAPI reference (
     expect(llmsFull).toContain("@haggles/server/hono");
     expect(llmsFull).toContain("policy_violation");
   });
+
+  it("verifies every Mintlify MDX page referenced in docs.json exists and uses mermaid diagrams", () => {
+    const docsRoot = path.resolve(DIST_DIR, "..");
+    const docsJson = JSON.parse(
+      fs.readFileSync(path.join(docsRoot, "docs.json"), "utf8"),
+    ) as {
+      navigation: { tabs: Array<{ groups: Array<{ pages: string[] }> }> };
+    };
+
+    const allPages = docsJson.navigation.tabs.flatMap((t) =>
+      t.groups.flatMap((g) => g.pages),
+    );
+    expect(allPages.length).toBeGreaterThanOrEqual(16);
+
+    for (const pageSlug of allPages) {
+      const mdxPath = path.join(docsRoot, `${pageSlug}.mdx`);
+      expect(fs.existsSync(mdxPath), `Missing Mintlify page: ${pageSlug}.mdx`).toBe(
+        true,
+      );
+    }
+
+    const introMdx = fs.readFileSync(
+      path.join(docsRoot, "introduction.mdx"),
+      "utf8",
+    );
+    expect(introMdx).toContain("```mermaid");
+    expect(introMdx).toContain("sequenceDiagram");
+  });
 });

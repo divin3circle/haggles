@@ -1,0 +1,11 @@
+---
+title: "@haggles/client"
+description: "Buyer SDK providing createHaggles and readReceipt for automatic HTTP 402 payment handling."
+---
+
+## `createHaggles(options: CreateHagglesOptions)`
+
+Returns `{ fetch, balance, wrap }`:
+- `haggles.fetch(input, init)` — Performs the HTTP request; on `402 Payment Required` with a valid Haggles challenge, verifies URL/method match and `maxPricePerCall`, calls `POST /v1/payments`, and retries once with `Haggles-Payment: <token>`.
+- `haggles.balance()` — Queries `GET /v1/wallet` for current `available`, `held`, and remaining policy allowances.
+- `readReceipt(response)` — Extracts and decodes the signed `Haggles-Receipt` header.

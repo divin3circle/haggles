@@ -1,0 +1,12 @@
+---
+title: "@haggles/core"
+description: "Zero-float micro-dollar arithmetic, RFC 3986 URL canonicalization, Ed25519 JWS tokens/receipts, and RFC 9457 error catalogue."
+---
+
+## Exported Functions
+
+- `parseMoney(input: string): bigint` — Parses a USD decimal string (`"0.025"`) into integer micro-dollars (`25_000n`).
+- `formatMoney(micros: bigint): string` — Formats integer micro-dollars into canonical USD decimal string (`"0.025"`).
+- `canonicalizeUrl(rawUrl: string): string` — Normalizes scheme/host case, strips default ports and fragments, and sorts query parameters.
+- `encodeChallenge(challenge: Challenge): string` / `decodeChallenge(encoded: string): Challenge`
+- `signPaymentToken` / `verifyPaymentToken` / `signReceipt` / `verifyReceipt` — Ed25519 JWS helpers.

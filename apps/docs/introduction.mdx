@@ -1,0 +1,67 @@
+---
+title: "What is Haggles?"
+description: "HTTP 402 Payment Required for AI agents, settled on PayPal rails with double-entry micro-dollar accounting and per-agent spending policies."
+---
+
+**Haggles** lets any developer put a price on an HTTP endpoint (`$0.0001` to `$5.00` per call) and get paid in real USD via **PayPal** by AI agents that pay automatically within spending policies their owners control.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart: Sell (5 min)" icon="bolt" href="/quickstart-sell">
+    Gate any Hono or Express route behind HTTP 402 in 2 lines of middleware and receive PayPal Payouts.
+  </Card>
+  <Card title="Quickstart: Buy (5 min)" icon="wallet" href="/quickstart-buy">
+    Fund a prepaid wallet via PayPal Orders v2, issue a policy-capped agent key, and call paid APIs with `createHaggles`.
+  </Card>
+  <Card title="Double-Entry Ledger" icon="scale-balanced" href="/concepts/ledger">
+    Explore how integer micro-dollars (`$1.00 = 1,000,000` micros) and 6 ledger account kinds guarantee zero drift.
+  </Card>
+  <Card title="Wire Protocol & Test Vectors" icon="code" href="/protocol/wire-format">
+    Inspect the `WWW-Authenticate: Haggles`, `Haggles-Challenge`, `Haggles-Payment`, and `Haggles-Receipt` headers.
+  </Card>
+</CardGroup>
+
+## End-to-End Architecture & Protocol Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Agent as AI Agent (@haggles/client)
+    participant Seller as Seller API (@haggles/server)
+    participant Fac as Haggles Facilitator (/v1/*)
+    participant PP as PayPal Sandbox (Orders v2 & Payouts v1)
+
+    Note over Agent,PP: 1. Pre-funding (One-time via Portal)
+    Agent->>PP: Top up $5–$100 (PayPal Orders v2)
+    PP-->>Fac: Webhook PAYMENT.CAPTURE.COMPLETED
+    Fac->>Fac: Post G_PAYPAL + G_PAYPAL_FEES -> W_AVAIL
+
+    Note over Agent,Fac: 2. Autonomous HTTP 402 Call ($0.03)
+    Agent->>Seller: GET /datasets/rent-index?city=austin
+    Seller-->>Agent: 402 Payment Required + Haggles-Challenge
+    Agent->>Fac: POST /v1/payments (Bearer hgk_test_... + challenge)
+    Fac->>Fac: Verify policy caps & lock W_AVAIL -> W_HELD (60s TTL)
+    Fac-->>Agent: 201 Created (Ed25519 JWS token)
+
+    Note over Agent,Seller: 3. Redemption & Signed Receipt
+    Agent->>Seller: Retry GET + Haggles-Payment: <JWS token>
+    Seller->>Fac: POST /v1/payments/:id/redeem (Bearer hgs_test_...)
+    Fac->>Fac: Capture W_HELD -> S_PENDING (95%) + G_FEES (5%)
+    Fac-->>Seller: 200 OK + Ed25519 JWS receipt
+    Seller-->>Agent: 200 OK + Haggles-Receipt + JSON payload
+
+    Note over Seller,PP: 4. Seller Payout Sweep (>= $1.00)
+    Fac->>PP: POST /v1/payments/payouts (whole cents)
+    PP-->>Fac: Webhook PAYMENT.PAYOUTS-ITEM.SUCCEEDED
+```
+
+## Honest Assumptions & Known Limitations
+
+<Note>
+  **Assumption A1 (Micro-payment Economics):** Charging PayPal Orders directly on every `$0.005` or `$0.02` API call is impossible due to fixed per-transaction fees and human checkout latency. Haggles solves this by separating **funding** (PayPal Orders v2 into a prepaid wallet), **per-call settlement** (sub-cent double-entry ledger postings), and **disbursement** (PayPal Payouts v1 to sellers).
+</Note>
+
+<Warning>
+  **Regulatory Scope (Risk R3):** Holding prepaid balances and paying out third-party sellers in live production can implicate money-transmission or stored-value licensing. This hackathon project runs strictly on **PayPal Sandbox** (`PAYPAL_MODE=sandbox` or `mock`) with hard safety caps (`$100.00` max top-up, `$500.00` max wallet balance, `$5.00` max per call).
+</Warning>
+
+- **Non-Goals (`SPEC.md` § 1.4):** No cryptocurrency, no blockchain, no custom token/coin, no streaming per-token billing in v1, and no public marketplace directory in v1.

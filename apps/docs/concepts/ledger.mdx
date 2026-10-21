@@ -1,0 +1,50 @@
+---
+title: "Prepaid Wallets & Double-Entry Ledger"
+description: "How Haggles tracks every micro-dollar ($0.000001) across 6 double-entry account kinds with zero floating-point math."
+---
+
+All monetary values inside Haggles are stored as signed 64-bit integer **micro-dollars** (`1 USD = 1,000,000 micros`). Floating-point numbers (`number` for currency) are forbidden across the entire codebase.
+
+## Double-Entry Flow Across Account Kinds
+
+```mermaid
+flowchart LR
+    GPP["G_PAYPAL (Asset)"]
+    GPF["G_PAYPAL_FEES (Expense)"]
+    WAV["W_AVAIL (Buyer Available >= 0)"]
+    WHL["W_HELD (Buyer Held >= 0)"]
+    SPN["S_PENDING (Seller Pending >= 0)"]
+    GFE["G_FEES (5% Platform Revenue)"]
+    SPO["S_PAYOUT (Seller Payout >= 0)"]
+
+    GPP -->|"1. Top-up Capture"| WAV
+    GPF -->|"PayPal Order Fee"| WAV
+    WAV -->|"2. Authorize (60s Hold)"| WHL
+    WHL -->|"3a. Redeem (95% Net)"| SPN
+    WHL -->|"3a. Redeem (5% Fee)"| GFE
+    WHL -->|"3b. Release / Expiry"| WAV
+    SPN -->|"4. Refund (< 24h)"| WAV
+    GFE -->|"4. Refund Fee Reversal"| WAV
+    SPN -->|"5. Payout Sweep (Whole Cents)"| SPO
+    SPO -->|"6. Payout SUCCEEDED"| GPP
+```
+
+## The Ledger Account Kinds (`SPEC.md` § 6.2)
+
+| Account Kind | Normal Balance | Non-Negative Guard | Purpose |
+|---|---|---|---|
+| `G_PAYPAL` | Debit (Asset) | No | PayPal omnibus cash clearing account |
+| `G_PAYPAL_FEES` | Debit (Expense) | No | PayPal Orders v2 & Payouts v1 processing fees |
+| `W_AVAIL` | Credit (Liability) | **Yes (`>= 0`)** | Buyer wallet available balance |
+| `W_HELD` | Credit (Liability) | **Yes (`>= 0`)** | Buyer funds locked in active 60-second authorizations |
+| `S_PENDING` | Credit (Liability) | **Yes (`>= 0`)** | Seller net earnings (95%) including sub-cent micro-dollar dust |
+| `S_PAYOUT` | Credit (Liability) | **Yes (`>= 0`)** | Seller whole-cent funds in an active PayPal Payout batch |
+| `G_FEES` | Credit (Revenue) | No | Haggles 5% facilitator revenue (`PLATFORM_FEE_BPS = 500`, half-even rounding) |
+
+## Global Conservation Invariant
+
+Every ledger transaction is enforced by a PostgreSQL `CONSTRAINT TRIGGER ... DEFERRABLE INITIALLY DEFERRED` verifying `SUM(debit) == SUM(credit)` at commit time, and an hourly invariant check verifies:
+
+```text
+G_PAYPAL + G_PAYPAL_FEES == sum(W_AVAIL) + sum(W_HELD) + sum(S_PENDING) + sum(S_PAYOUT) + G_FEES
+```

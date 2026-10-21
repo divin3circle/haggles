@@ -320,9 +320,13 @@ export function buildDocsSite(): {
   fs.writeFileSync(path.join(DIST_DIR, "llms-full.txt"), llmsFullTxt, "utf8");
   writtenFiles.push("llms-full.txt");
 
-  // Copy root openapi.json into dist/openapi.json
+  // Copy root openapi.json into apps/docs/openapi.json (for Mintlify) and dist/openapi.json
   const rootOpenapi = path.join(REPO_ROOT, "openapi.json");
+  const docsRoot = path.resolve(__dirname, "..");
+  fs.copyFileSync(rootOpenapi, path.join(docsRoot, "openapi.json"));
   fs.copyFileSync(rootOpenapi, path.join(DIST_DIR, "openapi.json"));
+  fs.writeFileSync(path.join(docsRoot, "llms.txt"), llmsTxt, "utf8");
+  fs.writeFileSync(path.join(docsRoot, "llms-full.txt"), llmsFullTxt, "utf8");
   writtenFiles.push("openapi.json");
 
   return {

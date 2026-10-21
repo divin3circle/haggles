@@ -1,0 +1,16 @@
+---
+title: "Security Model"
+description: "Cryptographic key storage, Ed25519 JWS tokens, SSRF prevention, CSRF double-submit cookies, and PayPal CSP nonces."
+---
+
+Haggles implements all controls specified in `SPEC.md` section 8.
+
+| Threat Vector | Mitigation Implemented |
+|---|---|
+| **API Key Database Leak** | Agent (`hgk_`) and Seller (`hgs_`) keys are hashed with `HMAC-SHA256(KEY_PEPPER, fullKey)` and verified with `crypto.timingSafeEqual`. Only a short prefix is stored in plaintext. |
+| **Signing Key Compromise at Rest** | Ed25519 private keys in `signing_keys` are encrypted with `AES-256-GCM` using a random 96-bit IV and 32-byte `MASTER_KEY`. |
+| **Token Replay / Cross-Endpoint Substitution** | Every Ed25519 JWS payment token (`typ: "haggles-pay+jwt"`) binds `sub` (`payment_id`), `aud` (`seller_id`), `mth` (HTTP method), canonical `url`, `amt` (micro-dollars), and a 60-second `exp`. |
+| **Facilitator SSRF** | The facilitator **never** makes outbound HTTP requests to seller URLs; URLs are validated and canonicalized purely as strings. |
+| **Portal CSRF & IDOR** | `hg_session` (`HttpOnly; Secure; SameSite=Lax`) is paired with `hg_csrf` and a required `X-Haggles-CSRF` header + `Origin` check on all state-changing routes. Cross-tenant resource lookups return `404 not_found`. |
+| **PayPal Webhook Spoofing** | Raw webhook bodies are verified via PayPal's `POST /v1/notifications/verify-webhook-signature` and deduplicated in `webhook_events`. |
+| **PayPal JS SDK XSS / CSP** | Next.js 16 `proxy.ts` generates a per-response cryptographic nonce `<N>` and attaches a strict `Content-Security-Policy` with `frame-ancestors 'none'`. |

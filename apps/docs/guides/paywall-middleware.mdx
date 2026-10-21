@@ -1,0 +1,13 @@
+---
+title: "Paywall an Express or Hono API"
+description: "How @haggles/server validates route prices at startup, verifies tokens locally against JWKS, and auto-refunds on 5xx errors."
+---
+
+`@haggles/server` provides drop-in middleware adapters for **Hono** (`@haggles/server/hono`) and **Express** (`@haggles/server/express`).
+
+## Built-In Safety Guarantees
+
+1. **Startup Price Validation:** Route prices are validated via `parseMoney` when the server boots. An invalid price (`"0.00"` or `"9.99"`) throws `InvalidMoneyError` immediately.
+2. **Local JWKS Pre-Verification:** Before calling `POST /v1/payments/:id/redeem`, the middleware verifies the Ed25519 JWS signature, `exp`, `aud` (`sellerId`), `mth`, canonical `url`, and `amt` locally against the cached `/.well-known/jwks.json`.
+3. **Fail-Closed:** If the facilitator is unreachable, the middleware responds with `503 Service Unavailable` and `Retry-After: 5`.
+4. **Automatic 5xx Refund:** When `refundOnError: true` (default), if your downstream handler throws or responds with `HTTP >= 500`, the middleware automatically calls `POST /v1/payments/:id/refund` in the background.

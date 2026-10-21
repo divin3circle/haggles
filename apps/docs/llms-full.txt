@@ -1,0 +1,743 @@
+# Haggles — Complete Protocol, Architecture, API & SDK Reference (llms-full.txt)
+
+# What is Haggles?
+
+Haggles lets any developer put a price on an HTTP endpoint ($0.0001 to $5.00 per call) and get paid in real USD via PayPal by AI agents that pay automatically within spending policies their owners control.
+
+## End-to-End Protocol Flow
+
+```
+Agent (@haggles/client)        Seller (@haggles/server)        Haggles Facilitator + PayPal
+       |                                  |                                  |
+       |--- 1. GET /datasets/rent-index ->|                                  |
+       |<-- 2. 402 + Haggles-Challenge ---|                                  |
+       |                                  |                                  |
+       |--- 3. POST /v1/payments (agent key + challenge) ------------------->|
+       |       (checks policy caps + locks W_AVAIL -> W_HELD)                |
+       |<-- 4. 201 Created (signed Ed25519 JWS token) -----------------------|
+       |                                  |                                  |
+       |--- 5. Retry GET + Haggles-Payment: <token>                         |
+       |                                  |--- 6. POST /v1/payments/:id/redeem
+       |                                  |       (captures W_HELD -> S_PENDING + 5% G_FEES)
+       |                                  |<-- 7. 200 OK + signed JWS receipt
+       |<-- 8. 200 OK + Haggles-Receipt --|                                  |
+```
+
+## Honest Assumptions & Known Limitations (SPEC.md §§ 1.4, 2.2, 17.1)
+
+- **Prepaid API Credits (Assumption A1):** Paying per API call directly with PayPal Orders ($0.49 + 3.49% fee per transaction) cannot price a $0.005 or $0.02 API call economically. Buyers top up a prepaid wallet ($5–$100 via PayPal Orders v2), agents spend micro-dollars from the internal double-entry ledger, and sellers receive batched payouts via PayPal Payouts v1.
+- **Regulatory Scope (Risk R3):** Holding prepaid balances and paying out third-party sellers in production can implicate stored-value or money-transmission regulations. This hackathon build operates exclusively in **PayPal Sandbox** with hard caps ($100 max top-up, $500 max wallet balance, $5 max per call).
+- **Non-Goals (Section 1.4):** No blockchain, no custom token/coin, no streaming per-token billing in v1, and no public marketplace directory in v1.
+
+---
+
+# Quickstart: Sell (5 minutes)
+
+1. Sign in to the Haggles Portal with your PayPal account (which automatically registers your PayPal `payer_id` for payouts).
+2. Open **Sell -> Setup** and create a seller key (`hgs_test_...`).
+3. Install `@haggles/server` and add the `paywall` middleware to your Hono or Express route:
+
+## Hono Seller Example
+
+```ts
+/**
+ * 5-minute Seller Quickstart (Hono) — compiled in CI (SPEC.md section 13.2).
+ */
+
+import { paywall } from "@haggles/server/hono";
+import { Hono } from "hono";
+
+const app = new Hono();
+
+const pay = paywall({
+  sellerKey: process.env.HAGGLES_SELLER_KEY!,
+  sellerId: process.env.HAGGLES_SELLER_ID!,
+  publicBaseUrl: "https://datasets.example.com",
+});
+
+app.get(
+  "/datasets/rent-index",
+  pay({ price: "0.03", description: "Apartment rent index by city ($0.03)" }),
+  (c) => {
+    const city = c.req.query("city") ?? "austin";
+    return c.json({ city, median_1br_usd: 1620, vacancy_rate_pct: 7.8 });
+  },
+);
+
+export default app;
+```
+
+## Express Seller Example
+
+```ts
+/**
+ * 5-minute Seller Quickstart (Express) — compiled in CI (SPEC.md section 13.2).
+ */
+
+import { paywall } from "@haggles/server/express";
+import express from "express";
+
+const app = express();
+
+const pay = paywall({
+  sellerKey: process.env.HAGGLES_SELLER_KEY!,
+  sellerId: process.env.HAGGLES_SELLER_ID!,
+  publicBaseUrl: "https://poems.example.com",
+});
+
+app.get(
+  "/poems/:id",
+  pay({ price: "0.02", description: "One poem by ID ($0.02)" }),
+  (req, res) => {
+    res.json({ id: req.params.id, title: "Ozymandias" });
+  },
+);
+
+export default app;
+```
+
+---
+
+# Quickstart: Buy (5 minutes)
+
+1. Open **Buy -> Wallet** in the Haggles Portal and add `$5.00`–`$100.00` using PayPal Sandbox.
+2. Open **Buy -> Agent keys** and create a key (`hgk_test_...`) with a per-call cap (e.g. `$0.10`) and daily cap (e.g. `$5.00`).
+3. Wrap `fetch` with `createHaggles` from `@haggles/client`:
+
+```ts
+/**
+ * 5-minute Buyer Quickstart (`@haggles/client`) — compiled in CI (SPEC.md section 13.2).
+ */
+
+import { createHaggles, readReceipt } from "@haggles/client";
+
+export async function runBuyerQuickstart(): Promise<void> {
+  const haggles = createHaggles({
+    agentKey: process.env.HAGGLES_KEY!,
+    maxPricePerCall: "0.10",
+    onPayment: (event) => {
+      console.log(`Paid $${event.amount} to ${event.sellerId} (${event.paymentId})`);
+    },
+  });
+
+  const response = await haggles.fetch(
+    "https://datasets.example.com/datasets/rent-index?city=austin",
+  );
+  const receipt = readReceipt(response);
+  const data: unknown = await response.json();
+
+  console.log("Receipt:", receipt?.paymentId, "Data:", data);
+}
+```
+
+---
+
+# Prepaid Wallets & Double-Entry Ledger (SPEC.md § 6)
+
+All money inside Haggles is stored as signed 64-bit integer **micro-dollars** (`1 USD = 1,000,000 micros`). Floating-point numbers are forbidden for money across the entire codebase.
+
+## The Six Ledger Account Kinds
+
+| Account Kind | Normal Side | Guarded (`>= 0`) | Purpose |
+|---|---|---|---|
+| `G_PAYPAL` | Debit (Asset) | No | PayPal omnibus clearing balance |
+| `G_PAYPAL_FEES` | Debit (Expense) | No | PayPal Orders & Payouts processing fees |
+| `W_AVAIL` | Credit (Liability) | **Yes** | Buyer wallet available balance |
+| `W_HELD` | Credit (Liability) | **Yes** | Buyer wallet funds locked in 60s flight holds |
+| `S_PENDING` | Credit (Liability) | **Yes** | Seller net earnings awaiting payout |
+| `S_PAYOUT` | Credit (Liability) | **Yes** | Seller whole-cent earnings in an active PayPal Payout batch |
+| `G_FEES` | Credit (Revenue) | No | Haggles 5% facilitator revenue (`PLATFORM_FEE_BPS = 500`) |
+
+## Global Conservation Invariant
+
+Every ledger transaction is enforced by a PostgreSQL `CONSTRAINT TRIGGER ... DEFERRABLE INITIALLY DEFERRED` verifying `SUM(debit) == SUM(credit)` before commit, and an hourly invariant check verifies:
+
+`G_PAYPAL + G_PAYPAL_FEES == sum(W_AVAIL) + sum(W_HELD) + sum(S_PENDING) + sum(S_PAYOUT) + G_FEES`
+
+---
+
+# Spending Policies (SPEC.md § 5.3)
+
+Every buyer agent key (`hgk_<env>_...`) carries a server-enforced spending policy evaluated inside the same serializable transaction that locks `W_AVAIL`:
+
+1. **Key Status & Expiry:** Must be `active` and `now < expires_at`.
+2. **Allowed Sellers (`allowed_sellers`):** If non-empty, `challenge.seller_id` must be in the list.
+3. **Allowed Hosts (`allowed_hosts`):** If non-empty, the canonicalized lowercase hostname of `challenge.url` must match.
+4. **Per-Call Maximum (`per_call_max`):** `challenge.amount <= per_call_max` (default `$0.10`).
+5. **Daily Maximum (`daily_max`):** UTC day counter `spent_today + amount <= daily_max` (default `$5.00`).
+6. **Monthly Maximum (`monthly_max`):** Optional UTC month counter `spent_month + amount <= monthly_max`.
+
+---
+
+# Payments Lifecycle (SPEC.md § 4 & § 6)
+
+```
+                 +---> captured ---> refunded (within 24 h)
+                 |
+[new] -> authorized (60 s TTL)
+                 |
+                 +---> released (explicit /v1/release or 60 s expiry job)
+```
+
+- **Hold TTL (60 seconds):** When `POST /v1/payments` succeeds, funds move from `W_AVAIL` to `W_HELD` and `spent_today` / `spent_month` are incremented. If the seller does not redeem the token within 60 seconds, the hold expires and both the balance and policy counters are restored.
+- **Auto-Release & Auto-Refund:** If a seller handler throws or returns `HTTP >= 500` after redeem, `@haggles/server` automatically calls `POST /v1/payments/:id/refund` in the background.
+
+---
+
+# Security Model (SPEC.md § 8)
+
+| Threat | Mitigation |
+|---|---|
+| Database read leak of API keys | Keys are hashed with `HMAC-SHA256(KEY_PEPPER, fullKey)` and compared via `crypto.timingSafeEqual`. Plaintext is shown once on creation. |
+| Signing key compromise at rest | Ed25519 private keys in `signing_keys` are encrypted with `AES-256-GCM` using a random 96-bit IV and 32-byte `MASTER_KEY`. |
+| Token replay or cross-endpoint reuse | Every JWS payment token binds `aud` (`seller_id`), `mth` (HTTP method), `url` (canonical URL), `amt` (micro-dollars), and a 60-second `exp`. |
+| Facilitator SSRF | The facilitator **never** makes outbound HTTP requests to seller URLs; URLs are treated purely as canonicalized strings. |
+| Portal CSRF | Session cookie `hg_session` (`HttpOnly; Secure; SameSite=Lax`) paired with `hg_csrf` and required `X-Haggles-CSRF` header + `Origin` check on all mutations. |
+| PayPal Webhook Spoofing | Raw body verified against PayPal's `POST /v1/notifications/verify-webhook-signature` before processing, deduplicated in `webhook_events`. |
+
+---
+
+# Wire Protocol Reference (SPEC.md § 4)
+
+## HTTP Headers
+
+- `WWW-Authenticate: Haggles challenge="<base64url(JSON)>"`
+- `Haggles-Challenge: <base64url(JSON)>`
+- `Haggles-Payment: <compact Ed25519 JWS token>`
+- `Haggles-Receipt: <compact Ed25519 JWS receipt>`
+
+## Normative Money Test Vectors (`packages/core/test-vectors/money.json`)
+
+```json
+{
+  "description": "Haggles protocol money parse/format test vectors (SPEC.md sections 0.1, 4.2, 10.1)",
+  "valid": [
+    {
+      "input": "0",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.0",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.00",
+      "micros": "0",
+      "formatted": "0.00"
+    },
+    {
+      "input": "0.000001",
+      "micros": "1",
+      "formatted": "0.000001"
+    },
+    {
+      "input": "0.0001",
+      "micros": "100",
+      "formatted": "0.0001"
+    },
+    {
+      "input": "0.000100",
+      "micros": "100",
+      "formatted": "0.0001"
+    },
+    {
+      "input": "0.0035",
+      "micros": "3500",
+      "formatted": "0.0035"
+    },
+    {
+      "input": "0.005",
+      "micros": "5000",
+      "formatted": "0.005"
+    },
+    {
+      "input": "0.01",
+      "micros": "10000",
+      "formatted": "0.01"
+    },
+    {
+      "input": "0.02",
+      "micros": "20000",
+      "formatted": "0.02"
+    },
+    {
+      "input": "0.1",
+      "micros": "100000",
+      "formatted": "0.10"
+    },
+    {
+      "input": "0.10",
+      "micros": "100000",
+      "formatted": "0.10"
+    },
+    {
+      "input": "1",
+      "micros": "1000000",
+      "formatted": "1.00"
+    },
+    {
+      "input": "5.00",
+      "micros": "5000000",
+      "formatted": "5.00"
+    },
+    {
+      "input": "12.5",
+      "micros": "12500000",
+      "formatted": "12.50"
+    },
+    {
+      "input": "200.00",
+      "micros": "200000000",
+      "formatted": "200.00"
+    },
+    {
+      "input": "500.00",
+      "micros": "500000000",
+      "formatted": "500.00"
+    },
+    {
+      "input": "9999999.999999",
+      "micros": "9999999999999",
+      "formatted": "9999999.999999"
+    }
+  ],
+  "invalid": [
+    "",
+    " ",
+    "0.02 ",
+    " 0.02",
+    "-0.01",
+    "+0.02",
+    ".02",
+    "0.",
+    "00.02",
+    "01.00",
+    "0.0000001",
+    "10000000.00",
+    "1e-5",
+    "1E2",
+    "NaN",
+    "Infinity",
+    "$0.02",
+    "0,02",
+    "abc"
+  ]
+}
+```
+
+## Normative URL Canonicalization Vectors (`packages/core/test-vectors/urls.json`)
+
+```json
+{
+  "description": "Haggles protocol canonical URL test vectors (>= 30 cases, SPEC.md sections 4.3 and 10.1)",
+  "valid": [
+    {
+      "name": "already canonical https URL",
+      "input": "https://poems.example.com/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "uppercase scheme and host",
+      "input": "HTTPS://POEMS.EXAMPLE.COM/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "mixed case scheme and host",
+      "input": "HtTpS://PoEmS.ExAmPlE.cOm/Poems/42",
+      "expected": "https://poems.example.com/Poems/42"
+    },
+    {
+      "name": "strip default https port 443",
+      "input": "https://poems.example.com:443/poems/42",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip default http port 80",
+      "input": "http://poems.example.com:80/poems/42",
+      "expected": "http://poems.example.com/poems/42"
+    },
+    {
+      "name": "preserve non-default https port 8443",
+      "input": "https://poems.example.com:8443/poems/42",
+      "expected": "https://poems.example.com:8443/poems/42"
+    },
+    {
+      "name": "preserve non-default http port 3000",
+      "input": "http://localhost:3000/datasets/rent-index",
+      "expected": "http://localhost:3000/datasets/rent-index"
+    },
+    {
+      "name": "preserve port 80 on https",
+      "input": "https://poems.example.com:80/poems/42",
+      "expected": "https://poems.example.com:80/poems/42"
+    },
+    {
+      "name": "preserve port 443 on http",
+      "input": "http://poems.example.com:443/poems/42",
+      "expected": "http://poems.example.com:443/poems/42"
+    },
+    {
+      "name": "add root slash when path is empty",
+      "input": "https://poems.example.com",
+      "expected": "https://poems.example.com/"
+    },
+    {
+      "name": "add root slash when path is empty with default port",
+      "input": "https://poems.example.com:443",
+      "expected": "https://poems.example.com/"
+    },
+    {
+      "name": "preserve trailing slash on path",
+      "input": "https://poems.example.com/poems/",
+      "expected": "https://poems.example.com/poems/"
+    },
+    {
+      "name": "strip fragment",
+      "input": "https://poems.example.com/poems/42#stanza-2",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip empty fragment",
+      "input": "https://poems.example.com/poems/42#",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip fragment when query is present",
+      "input": "https://datasets.example.com/datasets/rent-index?city=austin#table",
+      "expected": "https://datasets.example.com/datasets/rent-index?city=austin"
+    },
+    {
+      "name": "keep query string parameter order unsortd (b before a)",
+      "input": "https://datasets.example.com/search?b=2&a=1&c=3",
+      "expected": "https://datasets.example.com/search?b=2&a=1&c=3"
+    },
+    {
+      "name": "keep duplicate query parameters in original order",
+      "input": "https://datasets.example.com/search?tag=ai&tag=payments&tag=ai",
+      "expected": "https://datasets.example.com/search?tag=ai&tag=payments&tag=ai"
+    },
+    {
+      "name": "strip bare trailing question mark with empty query",
+      "input": "https://poems.example.com/poems/42?",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "strip bare trailing question mark before fragment",
+      "input": "https://poems.example.com/poems/42?#frag",
+      "expected": "https://poems.example.com/poems/42"
+    },
+    {
+      "name": "normalize lowercase percent-encoding in path to uppercase hex",
+      "input": "https://poems.example.com/poems/%2f42%3a1",
+      "expected": "https://poems.example.com/poems/%2F42%3A1"
+    },
+    {
+      "name": "normalize mixed-case percent-encoding in query to uppercase hex",
+      "input": "https://datasets.example.com/rent?city=San%20Francisco&filter=%3d%26%2f",
+      "expected": "https://datasets.example.com/rent?city=San%20Francisco&filter=%3D%26%2F"
+    },
+    {
+      "name": "do not decode reserved characters (%2F, %3F, %26, %3D, %23)",
+      "input": "https://poems.example.com/a%2Fb%3Fc%26d%3De%23f",
+      "expected": "https://poems.example.com/a%2Fb%3Fc%26d%3De%23f"
+    },
+    {
+      "name": "preserve percent-encoded unreserved characters with uppercase hex",
+      "input": "https://poems.example.com/%7euser/%41%42",
+      "expected": "https://poems.example.com/%7Euser/%41%42"
+    },
+    {
+      "name": "resolve single-dot and double-dot path segments",
+      "input": "https://poems.example.com/a/b/./c/../d",
+      "expected": "https://poems.example.com/a/b/d"
+    },
+    {
+      "name": "encode UTF-8 characters in path with uppercase hex",
+      "input": "https://poems.example.com/poems/café",
+      "expected": "https://poems.example.com/poems/caf%C3%A9"
+    },
+    {
+      "name": "encode UTF-8 characters in query with uppercase hex",
+      "input": "https://datasets.example.com/rent?city=München",
+      "expected": "https://datasets.example.com/rent?city=M%C3%BCnchen"
+    },
+    {
+      "name": "convert internationalized domain name (IDN) to punycode",
+      "input": "https://münchen.example.com/datasets",
+      "expected": "https://xn--mnchen-3ya.example.com/datasets"
+    },
+    {
+      "name": "IPv4 host with port",
+      "input": "http://127.0.0.1:4000/v1/payments",
+      "expected": "http://127.0.0.1:4000/v1/payments"
+    },
+    {
+      "name": "IPv6 host with default port stripped and hex lowercased",
+      "input": "http://[2001:DB8::1]:80/v1/payments",
+      "expected": "http://[2001:db8::1]/v1/payments"
+    },
+    {
+      "name": "preserve plus sign in query string",
+      "input": "https://datasets.example.com/rent?city=New+York",
+      "expected": "https://datasets.example.com/rent?city=New+York"
+    },
+    {
+      "name": "preserve empty value query param",
+      "input": "https://datasets.example.com/rent?city=",
+      "expected": "https://datasets.example.com/rent?city="
+    },
+    {
+      "name": "combined normalization: scheme, host, default port, percent-hex, query order, fragment",
+      "input": "HTTPS://API.Haggles.Example.COM:443/v1/items/%2falpha?z=1&a=%3a#section",
+      "expected": "https://api.haggles.example.com/v1/items/%2Falpha?z=1&a=%3A"
+    }
+  ],
+  "invalid": [
+    "",
+    "   ",
+    " https://poems.example.com/poems/42",
+    "https://poems.example.com/poems/42 ",
+    "/poems/42",
+    "poems.example.com/poems/42",
+    "ftp://poems.example.com/poems/42",
+    "ws://poems.example.com/poems/42",
+    "javascript:alert(1)",
+    "https://user:pass@poems.example.com/poems/42",
+    "https://user@poems.example.com/poems/42"
+  ]
+}
+```
+
+---
+
+# Error Catalogue — RFC 9457 Problem Details (SPEC.md Appendix A)
+
+Every facilitator and middleware error returns `Content-Type: application/problem+json` with `type`, `title`, `status`, `code`, `detail`, and `request_id`.
+
+| `code` | HTTP Status | Title |
+|---|---|---|
+| `invalid_challenge` | 422 | Invalid challenge |
+| `seller_not_found` | 404 | Seller not found |
+| `seller_paused` | 409 | Seller is paused |
+| `policy_violation` | 403 | Spending policy violation |
+| `insufficient_funds` | 409 | Insufficient funds |
+| `key_revoked` | 401 | API key revoked or expired |
+| `unauthorized` | 401 | Unauthorized |
+| `forbidden` | 403 | Forbidden |
+| `not_found` | 404 | Not found |
+| `already_redeemed` | 409 | Payment already redeemed |
+| `amount_mismatch` | 409 | Payment amount mismatch |
+| `request_mismatch` | 409 | Request method or URL mismatch |
+| `token_expired` | 410 | Payment token expired |
+| `refund_not_allowed` | 409 | Refund not allowed |
+| `idempotency_conflict` | 422 | Idempotency key conflict |
+| `wallet_limit_exceeded` | 409 | Wallet balance limit exceeded |
+| `wallet_frozen` | 403 | Wallet is frozen |
+| `rate_limited` | 429 | Rate limit exceeded |
+| `facilitator_unavailable` | 503 | Facilitator unavailable |
+| `internal_error` | 500 | Internal server error |
+| `invalid_money` | 422 | Invalid money amount |
+| `challenge_mismatch` | 422 | Challenge URL or method mismatch |
+| `payment_not_accepted` | 402 | Payment not accepted by seller |
+| `non_replayable_body` | 400 | Request body is not replayable |
+
+---
+
+# Facilitator & Portal API Reference (Haggles API v0.1.0)
+
+Download the raw specification: [`/openapi.json`](./openapi.json)
+
+| Method | Path | Tag | Summary | Responses |
+|---|---|---|---|---|
+| `GET` | `/health` | `system` | Liveness probe | `200` |
+| `GET` | `/ready` | `system` | Readiness probe | `200, 503` |
+| `GET` | `/.well-known/jwks.json` | `protocol` | Public Ed25519 signing keys (JWKS) | `200` |
+| `POST` | `/v1/payments` | `protocol` | Authorize a payment | `201, 401, 403, 404, 409, 422` |
+| `GET` | `/v1/payments/{id}` | `protocol` | Read a payment | `200, 401, 404` |
+| `POST` | `/v1/payments/{id}/redeem` | `protocol` | Redeem (capture) an authorized payment | `200, 401, 404, 409, 410, 422` |
+| `POST` | `/v1/payments/{id}/refund` | `protocol` | Refund a captured payment | `200, 401, 404, 409` |
+| `GET` | `/v1/wallet` | `protocol` | Read buyer wallet balance and policy allowance | `200, 401` |
+| `GET` | `/portal/v1/auth/paypal/start` | `portal` | Start Log in with PayPal authorization flow | `200` |
+| `GET` | `/portal/v1/auth/paypal/callback` | `portal` | Complete Log in with PayPal authorization callback | `200` |
+| `POST` | `/portal/v1/auth/logout` | `portal` | Log out current portal session | `200` |
+| `GET` | `/portal/v1/me` | `portal` | Read current authenticated account profile and roles | `200` |
+| `PATCH` | `/portal/v1/me` | `portal` | Update current account profile and Buyer/Seller roles | `200` |
+| `GET` | `/portal/v1/buyer/summary` | `portal` | Buyer overview summary | `200` |
+| `GET` | `/portal/v1/buyer/spend-series` | `portal` | Buyer daily spend time-series | `200` |
+| `GET` | `/portal/v1/buyer/keys` | `portal` | List buyer agent keys | `200` |
+| `POST` | `/portal/v1/buyer/keys` | `portal` | Create a buyer agent key | `200` |
+| `GET` | `/portal/v1/buyer/keys/{id}` | `portal` | Read a buyer agent key | `200` |
+| `PATCH` | `/portal/v1/buyer/keys/{id}` | `portal` | Update a buyer agent key policy | `200` |
+| `POST` | `/portal/v1/buyer/keys/{id}/revoke` | `portal` | Revoke a buyer agent key | `200` |
+| `GET` | `/portal/v1/buyer/payments` | `portal` | List buyer payments with filters and cursor pagination | `200` |
+| `GET` | `/portal/v1/buyer/payments/{id}` | `portal` | Read a single buyer payment | `200` |
+| `GET` | `/portal/v1/buyer/topups` | `portal` | List buyer wallet top-ups | `200` |
+| `POST` | `/portal/v1/buyer/topups` | `portal` | Create a PayPal top-up order | `200` |
+| `POST` | `/portal/v1/buyer/topups/{id}/capture` | `portal` | Capture an approved PayPal top-up order | `200` |
+| `GET` | `/portal/v1/seller/summary` | `portal` | Seller overview summary | `200` |
+| `GET` | `/portal/v1/seller/revenue-series` | `portal` | Seller daily net revenue time-series | `200` |
+| `GET` | `/portal/v1/seller/endpoints` | `portal` | List auto-discovered seller endpoints | `200` |
+| `PATCH` | `/portal/v1/seller/endpoints/{id}` | `portal` | Update seller endpoint metadata | `200` |
+| `GET` | `/portal/v1/seller/keys` | `portal` | List seller API keys | `200` |
+| `POST` | `/portal/v1/seller/keys` | `portal` | Create a seller API key | `200` |
+| `POST` | `/portal/v1/seller/keys/{id}/revoke` | `portal` | Revoke a seller API key | `200` |
+| `GET` | `/portal/v1/seller/calls` | `portal` | List seller calls with pseudonymous agent_ref | `200` |
+| `GET` | `/portal/v1/seller/payouts` | `portal` | List seller payouts | `200` |
+| `POST` | `/portal/v1/seller/payouts` | `portal` | Request an on-demand seller payout | `200` |
+| `POST` | `/portal/v1/seller/test-key` | `portal` | Issue a sandbox test agent key for seller setup | `200` |
+| `POST` | `/webhooks/paypal` | `webhooks` | Receive and verify PayPal webhook notifications | `200, 401, 422` |
+
+---
+
+# SDK Reference
+
+## `@haggles/core`
+- `parseMoney(input: string): bigint` — Parses a USD decimal string into integer micro-dollars (`1_000_000n` = `$1.00`).
+- `formatMoney(micros: bigint): string` — Formats integer micro-dollars into canonical USD decimal string (min 2 decimals, up to 6).
+- `canonicalizeUrl(rawUrl: string): string` — Normalizes scheme/host case, strips default ports and fragments, and sorts query parameters.
+- `encodeChallenge(challenge: Challenge): string` / `decodeChallenge(encoded: string): Challenge`
+- `signPaymentToken(claims, privateKey, kid)` / `verifyPaymentToken(token, jwks, expected)`
+- `signReceipt(claims, privateKey, kid)` / `verifyReceipt(receipt, jwks)`
+
+## `@haggles/client`
+- `createHaggles(options: CreateHagglesOptions): HagglesClient` — Returns `{ fetch, balance, wrap }`.
+- `readReceipt(response: Response): HagglesReceipt | null` — Decodes the `Haggles-Receipt` header from a paid response.
+
+## `@haggles/server`
+- `paywall(config: PaywallConfig)` in `@haggles/server/hono` and `@haggles/server/express`
+- `createPaywallCore(config: PaywallConfig)` — Framework-agnostic 402 challenge & redeem engine with fail-closed verification and automatic 5xx refund.
+
+---
+
+# Guide: Paywall an Express or Hono API
+
+`@haggles/server` validates route prices at startup (failing fast if a price is outside `$0.0001`..`$5.00`), verifies Ed25519 JWS tokens locally against the facilitator's cached JWKS before calling `POST /v1/payments/:id/redeem`, and automatically triggers `POST /v1/payments/:id/refund` if your downstream route handler throws or responds with HTTP `>= 500`.
+
+```ts
+/**
+ * 5-minute Seller Quickstart (Hono) — compiled in CI (SPEC.md section 13.2).
+ */
+
+import { paywall } from "@haggles/server/hono";
+import { Hono } from "hono";
+
+const app = new Hono();
+
+const pay = paywall({
+  sellerKey: process.env.HAGGLES_SELLER_KEY!,
+  sellerId: process.env.HAGGLES_SELLER_ID!,
+  publicBaseUrl: "https://datasets.example.com",
+});
+
+app.get(
+  "/datasets/rent-index",
+  pay({ price: "0.03", description: "Apartment rent index by city ($0.03)" }),
+  (c) => {
+    const city = c.req.query("city") ?? "austin";
+    return c.json({ city, median_1br_usd: 1620, vacancy_rate_pct: 7.8 });
+  },
+);
+
+export default app;
+```
+
+---
+
+# Guide: Give an AI SDK Agent a Paid-Fetch Tool
+
+Wrap `haggles.fetch` inside a Vercel AI SDK `tool()` so Gemini (via `@ai-sdk/google-vertex`) can autonomously purchase metered HTTP 402 data within your key's policy limits:
+
+```ts
+/**
+ * Guide: Give a Vercel AI SDK Agent a Paid-Fetch Tool — compiled in CI (SPEC.md section 13.2).
+ */
+
+import { createHaggles, readReceipt } from "@haggles/client";
+import { tool } from "ai";
+import { z } from "zod";
+
+const haggles = createHaggles({
+  agentKey: process.env.HAGGLES_KEY!,
+  maxPricePerCall: "0.10",
+});
+
+export const buySourceTool = tool({
+  description:
+    "Fetches a paid HTTP 402 data endpoint using the agent's Haggles spending policy and returns the JSON payload plus the settled price.",
+  parameters: z.object({
+    url: z.string().url().describe("HTTPS URL of the Haggles-enabled endpoint"),
+  }),
+  execute: async ({ url }) => {
+    const response = await haggles.fetch(url);
+    const receipt = readReceipt(response);
+    const payload: unknown = await response.json();
+    return {
+      pricePaidUsd: receipt?.amount ?? "0.00",
+      paymentId: receipt?.paymentId ?? null,
+      payload,
+    };
+  },
+});
+```
+
+---
+
+# Going to Production Checklist (SPEC.md § 13.1 & § 17.1)
+
+1. **Regulatory & Stored-Value Review (Risk R3):** Holding prepaid balances on behalf of buyers and disbursing payouts to third-party sellers in production may constitute money transmission or stored-value issuance depending on jurisdiction. Before enabling `PAYPAL_MODE=live`, obtain legal counsel or partner with a licensed financial institution / payment facilitator.
+2. **PayPal Live App Approval (Risk R2):** Live *Log in with PayPal* scopes (`openid`, `email`, `https://uri.paypal.com/services/paypalattributes`) and Live *PayPal Payouts* require account-level approval from PayPal.
+3. **Separate Per-Environment Webhook IDs:** Register a dedicated live webhook in the PayPal Developer Dashboard and set `PAYPAL_WEBHOOK_ID` for that environment.
+4. **Always-On Infrastructure (Risk R5):** Run `haggles-api`, `haggles-worker`, `haggles-portal`, and PostgreSQL 16 on paid always-on instances so cold starts or 30-day free DB expirations never interrupt traffic.
+
+---
+
+# Self-Hosting the Facilitator (SPEC.md § 14)
+
+## Local Development with Docker Compose & Bun
+
+```bash
+docker compose up -d          # Starts PostgreSQL 16 + Redis 7
+bun install
+bun run db:migrate            # Applies Drizzle SQL migrations + deferred ledger trigger
+bun run seed                  # Seeds demo buyer wallet ($25), 2 sellers, and sample payments
+bun run dev                   # Starts the portal and API
+```
+
+## Deploying on Render (`render.yaml`)
+
+The repository root includes a schema-validated `render.yaml` Blueprint provisioning PostgreSQL 16 (`haggles-db`), Redis (`haggles-kv`), `haggles-api`, `haggles-worker`, `haggles-portal`, `haggles-docs`, and the three demo services.
+
+---
+
+# Operational Runbook (SPEC.md § 9 & § 13.1)
+
+## Rotating Ed25519 JWS Signing Keys
+The facilitator supports multiple active/verify-only keys in `/.well-known/jwks.json`. When rotating:
+1. Insert a new `active` Ed25519 key (encrypted under `MASTER_KEY`).
+2. Transition the previous key to `verify_only` for at least 10 minutes (well beyond the 60-second payment token TTL) so in-flight tokens verify cleanly.
+3. Retire expired keys.
+
+## Zero-Downtime Seller Key Rotation
+Sellers can hold up to **2 active seller keys** (`hgs_<env>_...`) simultaneously. Create a second key in **Sell -> Seller keys**, deploy the new `HAGGLES_SELLER_KEY` to your servers, and then revoke the old key.
+
+## Handling Ledger Invariant or Chargeback Alerts
+- If PayPal sends `PAYMENT.CAPTURE.REVERSED`, the webhook handler posts a compensating entry and sets `wallets.status = 'frozen'`, immediately blocking new `POST /v1/payments` authorizations for that buyer.
+
+---
+
+# FAQ · Changelog · Contributing
+
+## FAQ
+
+**Why not charge PayPal on every API call?**
+PayPal Orders have fixed + percentage transaction fees and require human approval. Pre-funding a wallet ($5–$100) via PayPal Orders v2 lets AI agents make sub-cent ($0.005) HTTP 402 calls in milliseconds with zero per-call PayPal fee.
+
+**What happens if a seller's server crashes after redeeming a token?**
+`@haggles/server` catches unhandled exceptions and `HTTP >= 500` responses and automatically triggers an asynchronous full refund (`POST /v1/payments/:id/refund`), restoring the buyer's wallet balance and reversing the 5% platform fee.
+
+**How are sub-cent balances paid out to sellers?**
+PayPal Payouts v1 requires whole-cent USD amounts (`$0.01` increments). Haggles sweeps the largest whole-cent amount (`>= $1.00`) from `S_PENDING` to `S_PAYOUT` and leaves any sub-cent dust (`< $0.01`) in `S_PENDING` for the next payout.
+
+---

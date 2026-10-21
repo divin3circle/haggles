@@ -1,0 +1,75 @@
+---
+title: "Quickstart: Sell (5 minutes)"
+description: "Monetize any Hono or Express HTTP endpoint in 2 lines of middleware and receive PayPal Payouts."
+---
+
+<Steps>
+  <Step title="Sign in with PayPal">
+    Sign in at `/login` in the Haggles Portal. Signing in via *Log in with PayPal* (OIDC) automatically links your verified PayPal `payer_id` so payouts require zero manual bank configuration.
+  </Step>
+  <Step title="Create a Seller Key">
+    Navigate to **Sell → Setup** and click **Generate seller key**. Copy your secret `HAGGLES_SELLER_KEY` (`hgs_test_...`) and your public `sellerId` (`slr_...`).
+  </Step>
+  <Step title="Install @haggles/server and attach paywall()">
+    Install the seller SDK with Bun:
+    ```bash
+    bun add @haggles/server @haggles/core
+    ```
+    Then wrap any Hono or Express route:
+  </Step>
+</Steps>
+
+<CodeGroup>
+
+```ts Hono (apps/docs/snippets/quickstart-sell-hono.ts)
+import { paywall } from "@haggles/server/hono";
+import { Hono } from "hono";
+
+const app = new Hono();
+
+const pay = paywall({
+  sellerKey: process.env.HAGGLES_SELLER_KEY!,
+  sellerId: process.env.HAGGLES_SELLER_ID!,
+  publicBaseUrl: "https://datasets.example.com",
+});
+
+app.get(
+  "/datasets/rent-index",
+  pay({ price: "0.03", description: "Apartment rent index by city ($0.03)" }),
+  (c) => {
+    const city = c.req.query("city") ?? "austin";
+    return c.json({ city, median_1br_usd: 1620, vacancy_rate_pct: 7.8 });
+  },
+);
+
+export default app;
+```
+
+```ts Express (apps/docs/snippets/quickstart-sell-express.ts)
+import { paywall } from "@haggles/server/express";
+import express from "express";
+
+const app = express();
+
+const pay = paywall({
+  sellerKey: process.env.HAGGLES_SELLER_KEY!,
+  sellerId: process.env.HAGGLES_SELLER_ID!,
+  publicBaseUrl: "https://poems.example.com",
+});
+
+app.get(
+  "/poems/:id",
+  pay({ price: "0.02", description: "One poem by ID ($0.02)" }),
+  (req, res) => {
+    res.json({ id: req.params.id, title: "Ozymandias" });
+  },
+);
+
+export default app;
+```
+
+</CodeGroup>
+
+<Tip>
+  **Automatic Endpoint Registration:** You do not need to pre-register routes in the Portal. The first time your middleware redeems a payment on a route, Haggles registers the `(seller_id, method, route)` entry in **Sell → Endpoints** automatically.
+</Tip>

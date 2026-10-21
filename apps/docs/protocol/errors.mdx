@@ -1,0 +1,42 @@
+---
+title: "Error Catalogue (RFC 9457)"
+description: "Complete machine-readable error code catalogue returned in application/problem+json responses (SPEC.md Appendix A)."
+---
+
+All facilitator and middleware error responses return `Content-Type: application/problem+json` (RFC 9457):
+
+```json
+{
+  "type": "https://docs.haggles.example.com/errors/policy_violation",
+  "title": "Spending policy violation",
+  "status": 403,
+  "code": "policy_violation",
+  "detail": "daily_max_exceeded: Daily limit of 5.00 reached.",
+  "request_id": "req_01J9Z3K4M5N6P7Q8R9S0T1U2V3"
+}
+```
+
+## Error Code Reference (`SPEC.md` Appendix A)
+
+| `code` | HTTP | Title |
+|---|---|---|
+| `invalid_challenge` | `422` | Invalid challenge |
+| `seller_not_found` | `404` | Seller not found |
+| `seller_paused` | `409` | Seller is paused |
+| `policy_violation` | `403` | Spending policy violation |
+| `insufficient_funds` | `409` | Insufficient funds |
+| `key_revoked` | `401` | API key revoked or expired |
+| `unauthorized` | `401` | Unauthorized |
+| `forbidden` | `403` | Forbidden |
+| `not_found` | `404` | Not found |
+| `already_redeemed` | `409` | Payment already redeemed |
+| `amount_mismatch` | `409` | Payment amount mismatch |
+| `request_mismatch` | `409` | Request method or URL mismatch |
+| `token_expired` | `410` | Payment token expired |
+| `refund_not_allowed` | `409` | Refund not allowed |
+| `idempotency_conflict` | `422` | Idempotency key conflict |
+| `wallet_limit_exceeded` | `409` | Wallet balance limit exceeded |
+| `wallet_frozen` | `403` | Wallet is frozen |
+| `rate_limited` | `429` | Rate limit exceeded |
+| `facilitator_unavailable` | `503` | Facilitator unavailable |
+| `internal_error` | `500` | Internal server error |

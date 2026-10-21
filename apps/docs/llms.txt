@@ -1,0 +1,26 @@
+# Haggles — HTTP 402 Payment Required for AI Agents on PayPal Rails
+
+> Open protocol, double-entry micro-dollar facilitator, TypeScript SDKs (@haggles/core, @haggles/client, @haggles/server), and PayPal Orders v2 + Payouts v1 settlement.
+
+## Documentation Pages
+- [What is Haggles?](./index.html): HTTP 402 Payment Required for AI agents, settled on PayPal rails with double-entry micro-dollar accounting and server-enforced spending policies.
+- [Quickstart: Sell (5 minutes)](./quickstart-sell.html): Monetize any Hono or Express route in 2 lines of middleware and get paid via PayPal Payouts.
+- [Quickstart: Buy (5 minutes)](./quickstart-buy.html): Fund a prepaid wallet with PayPal Orders v2, issue a policy-capped agent key, and call paid endpoints with createHaggles.
+- [Prepaid Wallets & Double-Entry Ledger](./concepts-ledger.html): How Haggles tracks every micro-dollar ($0.000001) across 6 double-entry account kinds with zero floating-point math.
+- [Spending Policies](./concepts-policies.html): Server-enforced per-call, daily, monthly, host, and seller guardrails for autonomous AI agents.
+- [Payments Lifecycle](./concepts-lifecycle.html): State machine for authorized, captured, released, and refunded HTTP 402 payments.
+- [Security Model](./concepts-security.html): Cryptographic key storage, Ed25519 JWS tokens, SSRF prevention, CSRF double-submit cookies, and PayPal CSP nonces.
+- [Headers, Challenge, Token & Receipt](./protocol-wire.html): Normative wire protocol headers, URL canonicalization rules, JWS claims, and test vectors (SPEC.md § 4).
+- [Error Catalogue (RFC 9457)](./protocol-errors.html): Complete machine-readable error code catalogue returned in application/problem+json responses (SPEC.md Appendix A).
+- [API Reference (OpenAPI 3.1)](./api-reference.html): Complete Facilitator (/v1/*) and Portal (/portal/v1/*) HTTP endpoint reference generated from openapi.json.
+- [SDK Reference (@haggles/*)](./sdk-reference.html): TypeScript reference for @haggles/core, @haggles/client, and @haggles/server.
+- [Paywall an Express or Hono API](./guides-paywall.html): How @haggles/server validates route prices at startup, verifies tokens locally against JWKS, and auto-refunds on 5xx errors.
+- [Give an AI SDK Agent a Paid-Fetch Tool](./guides-ai-agent.html): Equip a Vercel AI SDK + Gemini Vertex AI agent with a Haggles paid-fetch tool and surface policy guardrails.
+- [Going to Production](./guides-production.html): Checklist for moving beyond the PayPal Sandbox hackathon environment, including regulatory review (R3) and PayPal live app approval (R2).
+- [Self-Hosting the Facilitator](./ops-self-hosting.html): Run Haggles locally with Docker Compose or deploy to Render with the root render.yaml Blueprint.
+- [Backups, Rotating Keys & Incident Basics](./ops-runbook.html): Operational runbook for Ed25519 JWKS rotation, seller key rotation, and ledger invariant incidents.
+- [FAQ · Changelog · Contributing](./faq.html): Frequently asked questions, release changelog, and contribution guidelines.
+
+## Machine-Readable Artifacts
+- [Full LLM Reference](./llms-full.txt)
+- [OpenAPI 3.1 Specification](./openapi.json)

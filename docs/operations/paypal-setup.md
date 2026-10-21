@@ -47,7 +47,7 @@ A payout failure is an expected possibility: it selects `sellers.payout_mode = '
 
 | Subcommand | Date | Result | Notes |
 |---|---|---|---|
-| `token` | - | not yet run | |
-| `order` | - | not yet run | |
-| `payout` | - | not yet run | U1 verdict decides `payout_mode` |
-| `verify-webhook` | - | not yet run | needs a real captured delivery, e.g. from the payout run |
+| `token` | 2026-10-21 | **PASS (`OK`)** | Client-credentials OAuth2 token issued (`A21AAJqA...`) and cached in `.paypal-token.json` |
+| `order` | - | pending interactive browser approval | Run `bun scripts/paypal-smoke.ts order` or approve via Portal `/buy/wallet` |
+| `payout` | 2026-10-21 | **PASS (`SUCCESS`)** | `U1 RESULT: payouts WORK on this sandbox account` (batch `X8B6B4Y9775L8` -> `batch_status=SUCCESS`, `item_status=SUCCESS`, `payout_mode = 'paypal'`) |
+| `verify-webhook` | - | pending tunnel / Render URL | Run once webhook URL is registered on Render or tunnel |

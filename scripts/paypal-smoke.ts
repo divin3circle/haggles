@@ -278,8 +278,14 @@ async function cmdPayout(): Promise<void> {
     finalStatus = status;
     const item = asRecord(asArray(batch?.items)[0]);
     const itemStatus = asString(item?.transaction_status);
+    const itemErr = asRecord(item?.errors);
     const fee = asRecord(item?.payout_item_fee);
     console.log(`  batch_status=${status} item_status=${itemStatus ?? "?"}`);
+    if (itemErr) {
+      console.log(
+        `  item_error: ${asString(itemErr.name) ?? "ERROR"} - ${asString(itemErr.message) ?? ""}`,
+      );
+    }
     if (!feePrinted && fee) {
       console.log(`  payout item fee: ${asString(fee.value) ?? "?"} ${asString(fee.currency_code) ?? ""}`);
       feePrinted = true;

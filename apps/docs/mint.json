@@ -1,7 +1,11 @@
 {
   "$schema": "https://mintlify.com/schema.json",
   "name": "Haggles",
-  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "favicon": "/favicon.png",
   "colors": {
     "primary": "#E08B3E",
     "light": "#F59E0B",

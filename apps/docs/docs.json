@@ -2,12 +2,19 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Haggles",
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "favicon": "/favicon.png",
+  "icons": {
+    "library": "tabler"
+  },
   "colors": {
     "primary": "#E08B3E",
     "light": "#F59E0B",
     "dark": "#C26D23"
   },
-  "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {

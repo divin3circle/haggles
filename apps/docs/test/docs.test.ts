@@ -57,13 +57,22 @@ describe("@haggles/docs static site, snippets, llms.txt, and OpenAPI reference (
     expect(llmsFull).toContain("policy_violation");
   });
 
-  it("verifies every Mintlify MDX page referenced in docs.json exists and uses mermaid diagrams", () => {
+  it("verifies every Mintlify MDX page referenced in docs.json exists, uses Tabler icons, and uses mermaid diagrams", () => {
     const docsRoot = path.resolve(DIST_DIR, "..");
     const docsJson = JSON.parse(
       fs.readFileSync(path.join(docsRoot, "docs.json"), "utf8"),
     ) as {
+      logo: { light: string; dark: string };
+      favicon: string;
+      icons: { library: string };
       navigation: { tabs: Array<{ groups: Array<{ pages: string[] }> }> };
     };
+
+    expect(docsJson.icons.library).toBe("tabler");
+    expect(docsJson.logo.light).toBe("/logo/light.png");
+    expect(docsJson.logo.dark).toBe("/logo/dark.png");
+    expect(fs.existsSync(path.join(docsRoot, "logo/light.png"))).toBe(true);
+    expect(fs.existsSync(path.join(docsRoot, "logo/dark.png"))).toBe(true);
 
     const allPages = docsJson.navigation.tabs.flatMap((t) =>
       t.groups.flatMap((g) => g.pages),
@@ -74,6 +83,10 @@ describe("@haggles/docs static site, snippets, llms.txt, and OpenAPI reference (
       const mdxPath = path.join(docsRoot, `${pageSlug}.mdx`);
       expect(fs.existsSync(mdxPath), `Missing Mintlify page: ${pageSlug}.mdx`).toBe(
         true,
+      );
+      const mdxContent = fs.readFileSync(mdxPath, "utf8");
+      expect(mdxContent, `Missing Tabler icon frontmatter in ${pageSlug}.mdx`).toMatch(
+        /^icon:\s*"[a-z0-9-]+"/m,
       );
     }
 

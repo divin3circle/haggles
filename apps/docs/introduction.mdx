@@ -1,21 +1,22 @@
 ---
 title: "What is Haggles?"
 description: "HTTP 402 Payment Required for AI agents, settled on PayPal rails with double-entry micro-dollar accounting and per-agent spending policies."
+icon: "layout-dashboard"
 ---
 
 **Haggles** lets any developer put a price on an HTTP endpoint (`$0.0001` to `$5.00` per call) and get paid in real USD via **PayPal** by AI agents that pay automatically within spending policies their owners control.
 
 <CardGroup cols={2}>
-  <Card title="Quickstart: Sell (5 min)" icon="bolt" href="/quickstart-sell">
+  <Card title="Quickstart: Sell (5 min)" icon="coin" href="/quickstart-sell">
     Gate any Hono or Express route behind HTTP 402 in 2 lines of middleware and receive PayPal Payouts.
   </Card>
   <Card title="Quickstart: Buy (5 min)" icon="wallet" href="/quickstart-buy">
     Fund a prepaid wallet via PayPal Orders v2, issue a policy-capped agent key, and call paid APIs with `createHaggles`.
   </Card>
-  <Card title="Double-Entry Ledger" icon="scale-balanced" href="/concepts/ledger">
+  <Card title="Double-Entry Ledger" icon="activity" href="/concepts/ledger">
     Explore how integer micro-dollars (`$1.00 = 1,000,000` micros) and 6 ledger account kinds guarantee zero drift.
   </Card>
-  <Card title="Wire Protocol & Test Vectors" icon="code" href="/protocol/wire-format">
+  <Card title="Wire Protocol & Test Vectors" icon="api" href="/protocol/wire-format">
     Inspect the `WWW-Authenticate: Haggles`, `Haggles-Challenge`, `Haggles-Payment`, and `Haggles-Receipt` headers.
   </Card>
 </CardGroup>

@@ -45,6 +45,7 @@ function renderPageHtml(page: DocPage, allPages: DocPage[]): string {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${page.title} — Haggles Docs</title>
   <meta name="description" content="${page.description}" />
+  <link rel="icon" href="./favicon.ico" />
   <style>
     :root {
       --bg: #111013;
@@ -88,16 +89,11 @@ function renderPageHtml(page: DocPage, allPages: DocPage[]): string {
       margin-bottom: 16px;
       padding: 0 8px;
     }
-    .brand-mark {
-      display: inline-flex;
-      width: 22px;
-      height: 22px;
-      align-items: center;
-      justify-content: center;
-      border-radius: 5px;
-      background: var(--primary);
-      color: #111013;
-      font-size: 12px;
+    .brand-logo {
+      height: 24px;
+      width: auto;
+      border-radius: 3px;
+      object-fit: contain;
     }
     .llms-links {
       display: flex;
@@ -248,7 +244,7 @@ function renderPageHtml(page: DocPage, allPages: DocPage[]): string {
 <body>
   <aside>
     <a class="brand" href="./index.html">
-      <span class="brand-mark">◆</span>
+      <img src="./haggles-dark.png" alt="" class="brand-logo" />
       <span>Haggles Docs</span>
     </a>
     <div class="llms-links">
@@ -320,11 +316,18 @@ export function buildDocsSite(): {
   fs.writeFileSync(path.join(DIST_DIR, "llms-full.txt"), llmsFullTxt, "utf8");
   writtenFiles.push("llms-full.txt");
 
-  // Copy root openapi.json into apps/docs/openapi.json (for Mintlify) and dist/openapi.json
+  // Copy root openapi.json and brand icons into apps/docs/ and dist/
   const rootOpenapi = path.join(REPO_ROOT, "openapi.json");
   const docsRoot = path.resolve(__dirname, "..");
   fs.copyFileSync(rootOpenapi, path.join(docsRoot, "openapi.json"));
   fs.copyFileSync(rootOpenapi, path.join(DIST_DIR, "openapi.json"));
+  for (const iconFile of ["haggles-dark.png", "haggles-light.png", "favicon.png", "favicon.ico"]) {
+    const srcIcon = path.join(docsRoot, iconFile);
+    if (fs.existsSync(srcIcon)) {
+      fs.copyFileSync(srcIcon, path.join(DIST_DIR, iconFile));
+      writtenFiles.push(iconFile);
+    }
+  }
   fs.writeFileSync(path.join(docsRoot, "llms.txt"), llmsTxt, "utf8");
   fs.writeFileSync(path.join(docsRoot, "llms-full.txt"), llmsFullTxt, "utf8");
   writtenFiles.push("openapi.json");

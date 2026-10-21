@@ -1,5 +1,12 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
+import {
+  hwfFitSize,
+  hwfHex,
+  hwfRadius,
+  hwfStep,
+  hwfWarmth,
+} from "@/components/landing/halftone-wordmark-footer";
 import { portalApi } from "@/lib/portal-api";
 import { buildPortalCsp, proxy } from "@/proxy";
 
@@ -87,5 +94,22 @@ describe("@haggles/portal CSP & Buyer/Seller state workflows (SPEC.md §§ 8.2, 
     const summaryAfter = await portalApi.getSellerSummary();
     // $3.2015 -> $3.20 swept, $0.0015 dust remains in pending
     expect(summaryAfter.pending).toBe("0.0015");
+  });
+
+  it("computes halftone wordmark footer hex, radius, spring step, warmth, and fit size accurately", () => {
+    expect(hwfHex("#111110")).toEqual([17, 17, 16]);
+    expect(hwfHex("#fff")).toEqual([255, 255, 255]);
+    expect(hwfHex("invalid")).toBeNull();
+
+    expect(hwfRadius(0, 6)).toBe(0);
+    expect(hwfRadius(1, 6)).toBeCloseTo(3.36, 2);
+
+    const [nx, ny] = hwfStep(10, 10, 0, 0, 10, 10, 20, 10, 80);
+    expect(nx).toBeLessThan(10);
+    expect(ny).toBe(10);
+
+    expect(hwfWarmth(10, 10, 10, 10, 28)).toBe(0);
+    expect(hwfWarmth(38, 10, 10, 10, 28)).toBe(1);
+    expect(hwfFitSize(500, 1000)).toBe(200);
   });
 });

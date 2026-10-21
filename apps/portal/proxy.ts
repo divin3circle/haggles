@@ -25,7 +25,7 @@ export function buildPortalCsp(nonce: string): string {
     "connect-src 'self' https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com",
     "frame-src https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com",
     "child-src https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com",
-    "img-src 'self' data: https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com",
+    "img-src 'self' data: https://*.paypal.com https://*.paypalobjects.com https://*.venmo.com https://images.unsplash.com",
     "font-src 'self' https://*.paypalobjects.com",
     "style-src 'self' 'unsafe-inline' https://*.paypal.com https://*.paypalobjects.com",
     "object-src 'none'",

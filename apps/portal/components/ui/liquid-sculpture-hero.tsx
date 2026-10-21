@@ -1356,7 +1356,7 @@ const CSS = `
 .sh-spacer{flex:1 1 auto;min-height:0}
 .sh-content{position:relative;z-index:2;display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);align-items:end;
   gap:clamp(24px,4cqw,72px);padding:0 clamp(20px,3.2cqw,48px) clamp(28px,3.4cqw,52px)}
-.sh-eyebrow{font-family:var(--font-mono),monospace;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.68;margin:0 0 clamp(14px,1.6cqw,22px);
+.sh-eyebrow{font-family:var(--sh-body);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.68;margin:0 0 clamp(14px,1.6cqw,22px);
   display:flex;align-items:center;gap:12px}
 .sh-eyebrow::before{content:"";width:28px;height:1px;background:currentColor;opacity:.7}
 .sh-h1{font-family:var(--sh-head);font-weight:600;font-size:clamp(38px,min(6.2cqw,10.8cqh),112px);line-height:.94;letter-spacing:-.04em;margin:0;

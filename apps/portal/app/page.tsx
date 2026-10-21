@@ -1,48 +1,37 @@
 /**
  * Public Landing page (`/` — SPEC.md section 11.3).
  *
- * Interactive WebGL2 GPGPU liquid sculpture hero with headline
- * "Get paid when AI agents use your API.", 3-step "How it works" cards,
- * 10-line `<CodeTabs>` (Seller / Buyer), and footer with GitHub, Docs, and MIT License.
+ * Composes modular landing page sections:
+ * - `<SculptureHero>`: Interactive WebGL2 GPGPU liquid sculpture hero
+ * - `<AboutSection>`: 3-column editorial bento showcase ("The Settlement Layer for the Agentic Web")
+ * - `<HowItWorksSection>`: 2-column interactive 2x2 device card + 4-step accordion
+ * - `<CtaSection>`: Drop-in Seller/Buyer SDK switcher + editorial CTA banner
+ * - `<HalftoneWordmarkFooter>`: Theme-aware spring-physics halftone wordmark footer
  */
 
-import { CodeTabs, SandboxBanner } from "@/components/haggles/primitives";
+import { SandboxBanner } from "@/components/haggles/primitives";
+import { AboutSection } from "@/components/landing/about-section";
+import { CtaSection } from "@/components/landing/cta-section";
+import HalftoneWordmarkFooter from "@/components/landing/halftone-wordmark-footer";
+import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import SculptureHero from "@/components/ui/liquid-sculpture-hero";
 
-const SELLER_SNIPPET = `import { paywall } from "@haggles/server/hono";
-
-const pay = paywall({
-  sellerKey: process.env.HAGGLES_SELLER_KEY!,
-  sellerId: process.env.HAGGLES_SELLER_ID!,
-  publicBaseUrl: "https://datasets.example.com",
-});
-
-app.get("/datasets/rent-index", pay({ price: "0.03", description: "Metro rent index" }), (c) => {
-  return c.json({ city: c.req.query("city"), medianRentUsd: 3180 });
-});`;
-
-const BUYER_SNIPPET = `import { createHaggles, readReceipt } from "@haggles/client";
-
-const haggles = createHaggles({
-  agentKey: process.env.HAGGLES_KEY!,
-  maxPricePerCall: "0.10",
-});
-
-const res = await haggles.fetch("https://datasets.example.com/datasets/rent-index?city=sf");
-const receipt = readReceipt(res); // { paymentId: "pay_01J...", amount: "0.03", ... }`;
-
+/**
+ * Renders the public Haggles landing page (`/`).
+ */
 export default function LandingPage() {
   const docsUrl =
     process.env.NEXT_PUBLIC_DOCS_URL ?? "https://github.com/haggles/haggles";
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
       <SandboxBanner mode="sandbox" />
 
-      {/* Liquid Sculpture Hero with Haggles wording, template fonts, and Tabler icons */}
+      {/* 1. Interactive WebGL2 Liquid Sculpture Hero */}
       <SculptureHero
         brand="Haggles"
         navLinks={[
+          { label: "About", href: "#about" },
           { label: "How it works", href: "#how-it-works" },
           { label: "SDKs", href: "#sdks" },
           { label: "Buyer Portal", href: "/buy" },
@@ -61,95 +50,54 @@ export default function LandingPage() {
         hintTouch="Touch the form"
       />
 
-      <main className="mx-auto w-full flex-1 max-w-5xl px-4 py-16 sm:px-6 sm:py-24">
-        {/* How it works (3 cards) */}
-        <section id="how-it-works" className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-border bg-card p-5">
-            <div className="font-mono text-xs font-semibold text-primary">
-              01 · Seller
-            </div>
-            <h2 className="mt-2 text-sm font-semibold">
-              Seller adds middleware
-            </h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Protect any Express or Hono route in two lines. Unpaid requests
-              receive a signed <code className="font-mono">402</code> challenge
-              with your price in USD.
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-5">
-            <div className="font-mono text-xs font-semibold text-primary">
-              02 · Agent
-            </div>
-            <h2 className="mt-2 text-sm font-semibold">
-              Agent gets a 402 and pays
-            </h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              <code className="font-mono">@haggles/client</code> checks the
-              agent key&apos;s per-call and daily caps, obtains an Ed25519
-              payment token in milliseconds, and retries once.
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-5">
-            <div className="font-mono text-xs font-semibold text-primary">
-              03 · Settlement
-            </div>
-            <h2 className="mt-2 text-sm font-semibold">
-              You get paid via PayPal
-            </h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Every call is accounted in micro-dollars on a double-entry ledger
-              and paid out to your PayPal account on schedule or on demand.
-            </p>
-          </div>
-        </section>
-
-        {/* 10-line CodeTabs block */}
-        <section id="sdks" className="mt-12 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">
-              Drop-in SDKs for sellers and buyers
-            </h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              bun add @haggles/server @haggles/client
-            </span>
-          </div>
-          <CodeTabs
-            tabs={[
-              { label: "Seller (@haggles/server)", code: SELLER_SNIPPET },
-              { label: "Buyer (@haggles/client)", code: BUYER_SNIPPET },
-            ]}
-          />
-        </section>
+      {/* 2. Main Editorial Content Sections */}
+      <main className="w-full flex-1">
+        <AboutSection />
+        <HowItWorksSection />
+        <CtaSection docsUrl={docsUrl} />
       </main>
 
-      <footer className="border-t border-border bg-card/30 py-6">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 text-xs text-muted-foreground sm:px-6">
-          <div>
-            Haggles Protocol v1 · Built with PayPal Orders v2, Payouts v1 &amp;
-            Log in with PayPal
-          </div>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://github.com/haggles/haggles"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground"
-            >
-              GitHub
-            </a>
-            <a
-              href={docsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground"
-            >
-              Docs
-            </a>
-            <span>MIT License</span>
-          </div>
-        </div>
-      </footer>
+      {/* 3. Theme-Aware Interactive Halftone Wordmark Footer */}
+      <HalftoneWordmarkFooter
+        wordmark="haggles"
+        label="Haggles"
+        meta="©2026 · HTTP 402 Agentic Commerce on PayPal Rails"
+        columns={[
+          {
+            title: "Platform",
+            links: [
+              { label: "Buyer Wallet", href: "/buy" },
+              { label: "Seller Studio", href: "/sell" },
+              { label: "Sign in with PayPal", href: "/login" },
+              { label: "Account Settings", href: "/account" },
+            ],
+          },
+          {
+            title: "Protocol",
+            links: [
+              { label: "About Haggles", href: "#about" },
+              { label: "How It Works", href: "#how-it-works" },
+              { label: "TypeScript SDKs", href: "#sdks" },
+            ],
+          },
+          {
+            title: "Resources",
+            links: [
+              { label: "Documentation", href: docsUrl, external: true },
+              {
+                label: "GitHub Repository",
+                href: "https://github.com/haggles/haggles",
+                external: true,
+              },
+              {
+                label: "MIT License",
+                href: "https://opensource.org/licenses/MIT",
+                external: true,
+              },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { haloToast } from "@/components/ui/halo-toast";
 import { portalApi } from "@/lib/portal-api";
 import { cn } from "@/lib/utils";
 
@@ -92,7 +93,17 @@ export function OnboardingCard() {
         is_buyer: wantBuy,
         is_seller: wantSell,
       });
+      haloToast.success(
+        "Workspace ready",
+        wantBuy && wantSell
+          ? "Your buyer wallet and seller payout profile are set up."
+          : wantBuy
+            ? "Your buyer wallet is set up. Add funds to start issuing agent keys."
+            : "Your seller payout profile is set up. Next, install the middleware.",
+      );
       router.push(wantBuy ? "/buy" : "/sell");
+    } catch {
+      haloToast.error("Couldn't save your roles", "Check your connection and try again.");
     } finally {
       setSaving(false);
     }

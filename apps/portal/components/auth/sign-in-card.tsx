@@ -18,6 +18,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import * as React from "react"
+import { haloToast } from "@/components/ui/halo-toast"
 
 const CAPABILITY_PILLS = [
   {
@@ -53,6 +54,7 @@ export function SignInCard() {
     const errParam = params.get("error")
     if (errParam) {
       setError(errParam)
+      haloToast.error("PayPal sign-in failed", errParam)
     }
   }, [])
 

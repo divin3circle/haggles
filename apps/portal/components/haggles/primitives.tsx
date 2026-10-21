@@ -18,6 +18,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { haloToast } from "@/components/ui/halo-toast";
 import { cn } from "@/lib/utils";
 
 /**
@@ -108,7 +109,7 @@ export function CopyButton({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      // clipboard unavailable
+      haloToast.error("Couldn't copy", "Your browser blocked clipboard access. Select the text and copy it manually.");
     }
   };
 

@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant fine-hover (@media (hover: hover) and (pointer: fine));
 
 @theme inline {
     --font-heading: var(--font-sans);

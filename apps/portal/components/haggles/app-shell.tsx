@@ -1,7 +1,8 @@
 /**
  * Haggles Portal App Shell (`SPEC.md` section 11.2).
  *
- * Renders the top `<SandboxBanner>`, responsive sidebar with BUY and SELL sections
+ * Renders the top `<SandboxBanner>`, collapsible desktop sidebar (`md+`, persisted in
+ * `localStorage` + `Cmd/Ctrl + B` shortcut) and mobile drawer with BUY and SELL sections
  * (showing "Enable buying / selling" when a role is disabled), breadcrumb header,
  * buyer wallet balance pill, theme toggle, and account menu.
  */
@@ -17,6 +18,8 @@ import {
   IconExternalLink,
   IconKey,
   IconLayoutDashboard,
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
   IconMenu2,
   IconMoon,
   IconSun,
@@ -35,6 +38,8 @@ import {
 } from "@/lib/portal-api";
 import { cn } from "@/lib/utils";
 import { HagglesLogo, Money, SandboxBanner } from "./primitives";
+
+const SIDEBAR_STORAGE_KEY = "haggles.sidebar.collapsed.v1";
 
 interface NavItem {
   label: string;
@@ -82,8 +87,43 @@ export function AppShell({
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(false);
   const [account, setAccount] = React.useState<PortalAccountProfile | null>(null);
   const [availableBalance, setAvailableBalance] = React.useState<string>("12.40");
+
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (saved === "1") {
+        setCollapsed(true);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const toggleCollapsed = React.useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // ignore storage errors
+      }
+      return next;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleCollapsed();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggleCollapsed]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -118,16 +158,22 @@ export function AppShell({
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const renderSidebarContent = () => (
+  const renderSidebarContent = (isCompact: boolean) => (
     <div className="flex h-full flex-col justify-between">
-      <div className="space-y-6 p-4">
-        <div className="flex items-center justify-between px-2">
+      <div className={cn("space-y-6", isCompact ? "px-2 py-4" : "p-4")}>
+        <div
+          className={cn(
+            "flex items-center",
+            isCompact ? "justify-center" : "justify-between px-2",
+          )}
+        >
           <Link
             href="/"
+            title="Haggles Home"
             className="flex items-center gap-2 text-sm font-semibold tracking-tight text-sidebar-foreground"
           >
-            <HagglesLogo />
-            <span>Haggles</span>
+            <HagglesLogo className="size-6 shrink-0" />
+            {!isCompact ? <span>Haggles</span> : null}
           </Link>
           <button
             type="button"
@@ -141,9 +187,16 @@ export function AppShell({
 
         {/* BUY section */}
         <div>
-          <div className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Buy
-          </div>
+          {isCompact ? (
+            <div
+              aria-hidden="true"
+              className="mx-2 mb-2 h-px bg-sidebar-border"
+            />
+          ) : (
+            <div className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Buy
+            </div>
+          )}
           {isBuyer ? (
             <nav aria-label="Buy navigation" className="mt-1.5 space-y-0.5">
               {BUY_NAV.map((item) => {
@@ -153,21 +206,25 @@ export function AppShell({
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={isCompact ? `Buy · ${item.label}` : undefined}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                      "flex items-center rounded-md text-xs font-medium transition-colors",
+                      isCompact
+                        ? "justify-center p-2"
+                        : "gap-2.5 px-2.5 py-1.5",
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                        ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                     )}
                   >
                     <Icon className="size-4 shrink-0" />
-                    <span>{item.label}</span>
+                    {!isCompact ? <span>{item.label}</span> : null}
                   </Link>
                 );
               })}
             </nav>
-          ) : (
+          ) : !isCompact ? (
             <div className="mt-1.5 px-2">
               <Link
                 href="/account"
@@ -176,14 +233,21 @@ export function AppShell({
                 Enable buying →
               </Link>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* SELL section */}
         <div>
-          <div className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Sell
-          </div>
+          {isCompact ? (
+            <div
+              aria-hidden="true"
+              className="mx-2 mb-2 h-px bg-sidebar-border"
+            />
+          ) : (
+            <div className="px-2 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Sell
+            </div>
+          )}
           {isSeller ? (
             <nav aria-label="Sell navigation" className="mt-1.5 space-y-0.5">
               {SELL_NAV.map((item) => {
@@ -193,21 +257,25 @@ export function AppShell({
                   <Link
                     key={item.href}
                     href={item.href}
+                    title={isCompact ? `Sell · ${item.label}` : undefined}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                      "flex items-center rounded-md text-xs font-medium transition-colors",
+                      isCompact
+                        ? "justify-center p-2"
+                        : "gap-2.5 px-2.5 py-1.5",
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                        ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
                         : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                     )}
                   >
                     <Icon className="size-4 shrink-0" />
-                    <span>{item.label}</span>
+                    {!isCompact ? <span>{item.label}</span> : null}
                   </Link>
                 );
               })}
             </nav>
-          ) : (
+          ) : !isCompact ? (
             <div className="mt-1.5 px-2">
               <Link
                 href="/account"
@@ -216,33 +284,44 @@ export function AppShell({
                 Enable selling →
               </Link>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
       {/* Bottom links */}
-      <div className="border-t border-sidebar-border p-4 space-y-1">
+      <div
+        className={cn(
+          "space-y-1 border-t border-sidebar-border",
+          isCompact ? "px-2 py-3" : "p-4",
+        )}
+      >
         <a
           href={process.env.NEXT_PUBLIC_DOCS_URL ?? "https://github.com/haggles/haggles"}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          title={isCompact ? "Docs" : undefined}
+          className={cn(
+            "flex items-center rounded-md text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+            isCompact ? "justify-center p-2" : "justify-between px-2.5 py-1.5",
+          )}
         >
-          <span>Docs</span>
-          <IconExternalLink className="size-3.5" />
+          {!isCompact ? <span>Docs</span> : null}
+          <IconExternalLink className="size-4 shrink-0" />
         </a>
         <Link
           href="/account"
+          title={isCompact ? "Account" : undefined}
           onClick={() => setMobileOpen(false)}
           className={cn(
-            "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+            "flex items-center rounded-md text-xs font-medium transition-colors",
+            isCompact ? "justify-center p-2" : "gap-2.5 px-2.5 py-1.5",
             pathname === "/account"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+              ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
               : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
           )}
         >
           <IconUser className="size-4 shrink-0" />
-          <span>Account</span>
+          {!isCompact ? <span>Account</span> : null}
         </Link>
       </div>
     </div>
@@ -253,12 +332,17 @@ export function AppShell({
       <SandboxBanner mode={account?.environment.paypal_mode ?? "sandbox"} />
 
       <div className="flex flex-1">
-        {/* Desktop Sidebar */}
-        <aside className="hidden w-56 shrink-0 border-r border-sidebar-border bg-sidebar md:block">
-          {renderSidebarContent()}
+        {/* Desktop Collapsible Sidebar (md+) */}
+        <aside
+          className={cn(
+            "hidden shrink-0 border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out md:block",
+            collapsed ? "w-15" : "w-56",
+          )}
+        >
+          {renderSidebarContent(collapsed)}
         </aside>
 
-        {/* Mobile Sheet Sidebar */}
+        {/* Mobile Sheet Sidebar (< md) */}
         {mobileOpen ? (
           <div className="fixed inset-0 z-50 flex md:hidden">
             <div
@@ -266,7 +350,7 @@ export function AppShell({
               onClick={() => setMobileOpen(false)}
             />
             <aside className="relative z-10 w-64 border-r border-sidebar-border bg-sidebar">
-              {renderSidebarContent()}
+              {renderSidebarContent(false)}
             </aside>
           </div>
         ) : null}
@@ -275,7 +359,8 @@ export function AppShell({
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Header */}
           <header className="flex h-13 items-center justify-between border-b border-border bg-card/50 px-4 md:px-6">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              {/* Mobile menu trigger */}
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
@@ -284,6 +369,31 @@ export function AppShell({
               >
                 <IconMenu2 className="size-4" />
               </button>
+
+              {/* Desktop sidebar collapse/expand trigger (md+) */}
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={
+                  collapsed
+                    ? "Expand sidebar (⌘B)"
+                    : "Collapse sidebar (⌘B)"
+                }
+                className="hidden cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:inline-flex"
+              >
+                {collapsed ? (
+                  <IconLayoutSidebarLeftExpand className="size-4" />
+                ) : (
+                  <IconLayoutSidebarLeftCollapse className="size-4" />
+                )}
+              </button>
+
+              <span
+                aria-hidden="true"
+                className="hidden h-4 w-px bg-border md:inline-block"
+              />
+
               <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
                 {section ? (
                   <>

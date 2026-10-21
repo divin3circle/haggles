@@ -1,0 +1,170 @@
+# Render Blueprint for Haggles (SPEC.md section 14.3)
+# Validated against https://render.com/schema/render.yaml.json
+
+databases:
+  - name: haggles-db
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+envVarGroups:
+  - name: haggles-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HAGGLES_ENV
+        value: test
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: PLATFORM_FEE_BPS
+        value: "500"
+      - key: LOG_LEVEL
+        value: info
+      - key: MASTER_KEY
+        sync: false
+      - key: KEY_PEPPER
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_OIDC_REDIRECT_URI
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: PUBLIC_PORTAL_URL
+        sync: false
+
+services:
+  - type: keyvalue
+    name: haggles-kv
+    plan: starter
+    ipAllowList: []
+
+  - type: web
+    name: haggles-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /ready
+    preDeployCommand: bun apps/api/dist/migrate.js
+    autoDeployTrigger: checksPass
+    envVars:
+      - fromGroup: haggles-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: haggles-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: haggles-kv
+          property: connectionString
+
+  - type: worker
+    name: haggles-worker
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    dockerCommand: bun apps/api/dist/worker.js
+    plan: starter
+    autoDeployTrigger: checksPass
+    envVars:
+      - fromGroup: haggles-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: haggles-db
+          property: connectionString
+
+  - type: web
+    name: haggles-portal
+    runtime: docker
+    dockerfilePath: ./apps/portal/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - fromGroup: haggles-shared
+      - key: API_INTERNAL_URL
+        fromService:
+          type: web
+          name: haggles-api
+          property: hostport
+      - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
+        sync: false
+      - key: NEXT_PUBLIC_DOCS_URL
+        sync: false
+
+  - type: web
+    name: haggles-docs
+    runtime: static
+    buildCommand: bun install --frozen-lockfile && bun --filter @haggles/docs run build
+    staticPublishPath: apps/docs/dist
+    autoDeployTrigger: checksPass
+
+  - type: web
+    name: haggles-seller-datasets
+    runtime: docker
+    dockerfilePath: ./examples/seller-datasets/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HAGGLES_FACILITATOR_URL
+        sync: false
+      - key: HAGGLES_SELLER_ID
+        sync: false
+      - key: HAGGLES_SELLER_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+
+  - type: web
+    name: haggles-seller-poems
+    runtime: docker
+    dockerfilePath: ./examples/seller-poems/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HAGGLES_FACILITATOR_URL
+        sync: false
+      - key: HAGGLES_SELLER_ID
+        sync: false
+      - key: HAGGLES_SELLER_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+
+  - type: web
+    name: haggles-buyer-research-agent
+    runtime: docker
+    dockerfilePath: ./examples/buyer-research-agent/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HAGGLES_FACILITATOR_URL
+        sync: false
+      - key: HAGGLES_KEY
+        sync: false
+      - key: DATASETS_SELLER_URL
+        sync: false
+      - key: POEMS_SELLER_URL
+        sync: false
+      - key: GOOGLE_VERTEX_PROJECT
+        sync: false
+      - key: GOOGLE_VERTEX_LOCATION
+        value: us-central1

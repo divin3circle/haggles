@@ -3,7 +3,7 @@
 
 databases:
   - name: haggles-db
-    plan: basic-256mb
+    plan: free
     postgresMajorVersion: "16"
 
 envVarGroups:
@@ -37,39 +37,13 @@ envVarGroups:
         sync: false
 
 services:
-  - type: keyvalue
-    name: haggles-kv
-    plan: starter
-    ipAllowList: []
-
   - type: web
     name: haggles-api
     runtime: docker
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /ready
-    preDeployCommand: bun apps/api/dist/migrate.js
-    autoDeployTrigger: checksPass
-    envVars:
-      - fromGroup: haggles-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: haggles-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: haggles-kv
-          property: connectionString
-
-  - type: worker
-    name: haggles-worker
-    runtime: docker
-    dockerfilePath: ./apps/api/Dockerfile
-    dockerContext: .
-    dockerCommand: bun apps/api/dist/worker.js
-    plan: starter
     autoDeployTrigger: checksPass
     envVars:
       - fromGroup: haggles-shared
@@ -83,7 +57,7 @@ services:
     runtime: docker
     dockerfilePath: ./apps/portal/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     healthCheckPath: /api/health
     autoDeployTrigger: checksPass
     envVars:
@@ -101,70 +75,6 @@ services:
   - type: web
     name: haggles-docs
     runtime: static
-    buildCommand: bun install --frozen-lockfile && bun --filter @haggles/docs run build
+    buildCommand: cd apps/docs && bun install && bun run build
     staticPublishPath: apps/docs/dist
     autoDeployTrigger: checksPass
-
-  - type: web
-    name: haggles-seller-datasets
-    runtime: docker
-    dockerfilePath: ./examples/seller-datasets/Dockerfile
-    dockerContext: .
-    plan: starter
-    healthCheckPath: /health
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: HAGGLES_FACILITATOR_URL
-        sync: false
-      - key: HAGGLES_SELLER_ID
-        sync: false
-      - key: HAGGLES_SELLER_KEY
-        sync: false
-      - key: PUBLIC_BASE_URL
-        sync: false
-
-  - type: web
-    name: haggles-seller-poems
-    runtime: docker
-    dockerfilePath: ./examples/seller-poems/Dockerfile
-    dockerContext: .
-    plan: starter
-    healthCheckPath: /health
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: HAGGLES_FACILITATOR_URL
-        sync: false
-      - key: HAGGLES_SELLER_ID
-        sync: false
-      - key: HAGGLES_SELLER_KEY
-        sync: false
-      - key: PUBLIC_BASE_URL
-        sync: false
-
-  - type: web
-    name: haggles-buyer-research-agent
-    runtime: docker
-    dockerfilePath: ./examples/buyer-research-agent/Dockerfile
-    dockerContext: .
-    plan: starter
-    healthCheckPath: /health
-    autoDeployTrigger: checksPass
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: HAGGLES_FACILITATOR_URL
-        sync: false
-      - key: HAGGLES_KEY
-        sync: false
-      - key: DATASETS_SELLER_URL
-        sync: false
-      - key: POEMS_SELLER_URL
-        sync: false
-      - key: GOOGLE_VERTEX_PROJECT
-        sync: false
-      - key: GOOGLE_VERTEX_LOCATION
-        value: us-central1

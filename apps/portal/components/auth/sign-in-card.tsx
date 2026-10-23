@@ -72,13 +72,19 @@ export function SignInCard() {
           window.location.href = data.authorize_url
           return
         }
+        throw new Error("Invalid PayPal authorization URL returned by server.")
       }
-    } catch {
-      // Fallback to sandbox onboarding flow when running in mock/offline mode
+      const errBody = (await res.json().catch(() => null)) as { message?: string; error?: { message?: string } } | null
+      const msg = errBody?.error?.message ?? errBody?.message ?? `Sign-in request failed with status ${res.status}`
+      setError(msg)
+      haloToast.error("Sign-in failed", msg)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to connect to PayPal"
+      setError(msg)
+      haloToast.error("Sign-in error", msg)
     } finally {
       setLoadingPayPal(false)
     }
-    router.push("/onboarding")
   }
 
   return (

@@ -62,11 +62,6 @@ services:
     autoDeployTrigger: checksPass
     envVars:
       - fromGroup: haggles-shared
-      - key: API_INTERNAL_URL
-        fromService:
-          type: web
-          name: haggles-api
-          property: hostport
       - key: NEXT_PUBLIC_PAYPAL_CLIENT_ID
         sync: false
       - key: NEXT_PUBLIC_DOCS_URL

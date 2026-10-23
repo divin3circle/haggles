@@ -7,28 +7,8 @@
 
 import type { NextConfig } from "next";
 
-const rawApiUrl =
-  process.env.PUBLIC_API_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_INTERNAL_URL ??
-  "http://localhost:3001";
-
-const apiTarget = (
-  rawApiUrl.startsWith("http://") || rawApiUrl.startsWith("https://")
-    ? rawApiUrl
-    : `http://${rawApiUrl}`
-).replace(/\/$/, "");
-
 const nextConfig: NextConfig = {
   transpilePackages: ["@haggles/core"],
-  async rewrites() {
-    return [
-      {
-        source: "/portal/v1/:path*",
-        destination: `${apiTarget}/portal/v1/:path*`,
-      },
-    ];
-  },
 };
 
 export default nextConfig;

@@ -6,7 +6,7 @@ WORKDIR /repo
 FROM base AS build
 COPY . .
 RUN --mount=type=cache,id=bun,target=/root/.bun/install/cache bun install --frozen-lockfile
-RUN bun --filter @haggles/core run build && bun --filter @haggles/api run build
+RUN bun run --filter @haggles/core build && bun run --filter @haggles/api build
 RUN bun install --production --frozen-lockfile
 
 FROM oven/bun:1-slim AS runtime

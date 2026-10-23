@@ -142,13 +142,7 @@ const RawConfigSchema = z
           message: "PAYPAL_CLIENT_SECRET is required when PAYPAL_MODE=sandbox.",
         });
       }
-      if (cfg.NODE_ENV === "production" && !cfg.PAYPAL_WEBHOOK_ID) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["PAYPAL_WEBHOOK_ID"],
-          message: "PAYPAL_WEBHOOK_ID is required in production when PAYPAL_MODE=sandbox.",
-        });
-      }
+      // PAYPAL_WEBHOOK_ID is optional until webhooks are tunneled/configured
     }
   });
 

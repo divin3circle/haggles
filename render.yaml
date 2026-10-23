@@ -75,6 +75,6 @@ services:
   - type: web
     name: haggles-docs
     runtime: static
-    buildCommand: cd apps/docs && bun install && bun run build
+    buildCommand: bun install && bun run --filter @haggles/core build && cd apps/docs && bun run build
     staticPublishPath: apps/docs/dist
     autoDeployTrigger: checksPass

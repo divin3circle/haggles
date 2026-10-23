@@ -19,4 +19,4 @@ COPY --from=build --chown=bun:bun /repo ./
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=3s CMD bun -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["bun", "--filter", "@haggles/portal", "run", "start"]
+CMD ["bun", "run", "--filter", "@haggles/portal", "start"]

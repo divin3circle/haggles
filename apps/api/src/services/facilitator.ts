@@ -24,6 +24,7 @@ import {
 } from "@haggles/core";
 import type { JWK } from "jose";
 import type { ApiConfig } from "../config.js";
+import type { DatabaseHandle } from "../db/index.js";
 import {
   buildCapturePostingPlan,
   buildHoldPostingPlan,
@@ -388,9 +389,11 @@ export class FacilitatorService {
   private readonly auditLogs: AuditLogRecord[] = [];
   private readonly spendCounters = new Map<string, bigint>();
   private readonly signingKeys = new Map<string, SigningKeyRecord>();
+  readonly dbHandle?: DatabaseHandle | undefined;
 
-  private constructor(config: ApiConfig, paypal?: PayPalGateway) {
+  private constructor(config: ApiConfig, paypal?: PayPalGateway, dbHandle?: DatabaseHandle) {
     this.config = config;
+    this.dbHandle = dbHandle;
     this.ledger = new InMemoryLedger();
     this.paypal =
       paypal ??
@@ -400,10 +403,140 @@ export class FacilitatorService {
   }
 
   /**
+   * Loads persisted accounts, wallets, sellers, keys, and endpoints from the database into memory.
+   */
+  async initFromDatabase(): Promise<void> {
+    if (!this.dbHandle) return;
+    try {
+      const accountRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at
+        FROM accounts
+      `;
+      for (const r of accountRows) {
+        const acc: AccountRecord = {
+          id: r.id,
+          paypalPayerId: r.paypal_payer_id,
+          paypalUserId: r.paypal_user_id,
+          email: r.email,
+          paypalVerifiedAccount: Boolean(r.paypal_verified_account),
+          displayName: r.display_name,
+          isBuyer: Boolean(r.is_buyer),
+          isSeller: Boolean(r.is_seller),
+          status: r.status as "active" | "frozen",
+          createdAt: new Date(r.created_at),
+        };
+        this.accountsById.set(acc.id, acc);
+        this.accountsByPayerId.set(acc.paypalPayerId, acc);
+      }
+
+      const walletRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, account_id, status, created_at FROM wallets
+      `;
+      for (const r of walletRows) {
+        const w: WalletRecord = {
+          id: r.id,
+          accountId: r.account_id,
+          status: r.status as "active" | "frozen",
+          createdAt: new Date(r.created_at),
+        };
+        this.wallets.set(w.id, w);
+        this.walletsByAccountId.set(w.accountId, w);
+        this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
+        this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
+      }
+
+      const sellerRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at FROM sellers
+      `;
+      for (const r of sellerRows) {
+        const s: SellerRecord = {
+          id: r.id,
+          accountId: r.account_id,
+          status: r.status as "active" | "paused",
+          payoutPaypalPayerId: r.payout_paypal_payer_id,
+          payoutEmail: r.payout_email,
+          payoutMode: r.payout_mode as "paypal" | "simulated",
+          createdAt: new Date(r.created_at),
+        };
+        this.sellers.set(s.id, s);
+        this.sellersByAccountId.set(s.accountId, s);
+        this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
+        this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
+      }
+
+      const agentKeyRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, wallet_id, name, prefix, key_hash, per_call_max_micros, daily_max_micros, monthly_max_micros, allowed_sellers, allowed_hosts, expires_at, status, last_used_at, revoked_at, created_at FROM agent_keys
+      `;
+      for (const r of agentKeyRows) {
+        const k: AgentKeyRecord = {
+          id: r.id,
+          walletId: r.wallet_id,
+          name: r.name,
+          prefix: r.prefix,
+          keyHash: r.key_hash,
+          perCallMaxMicros: BigInt(r.per_call_max_micros),
+          dailyMaxMicros: BigInt(r.daily_max_micros),
+          monthlyMaxMicros: r.monthly_max_micros ? BigInt(r.monthly_max_micros) : null,
+          allowedSellers: r.allowed_sellers,
+          allowedHosts: r.allowed_hosts,
+          expiresAt: r.expires_at ? new Date(r.expires_at) : null,
+          status: r.status as "active" | "revoked",
+          lastUsedAt: r.last_used_at ? new Date(r.last_used_at) : null,
+          revokedAt: r.revoked_at ? new Date(r.revoked_at) : null,
+          createdAt: new Date(r.created_at),
+        };
+        this.agentKeysById.set(k.id, k);
+        this.agentKeysByPrefix.set(k.prefix, k);
+      }
+
+      const sellerKeyRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, seller_id, name, prefix, key_hash, status, last_used_at, revoked_at, created_at FROM seller_keys
+      `;
+      for (const r of sellerKeyRows) {
+        const k: SellerKeyRecord = {
+          id: r.id,
+          sellerId: r.seller_id,
+          name: r.name,
+          prefix: r.prefix,
+          keyHash: r.key_hash,
+          status: r.status as "active" | "revoked",
+          lastUsedAt: r.last_used_at ? new Date(r.last_used_at) : null,
+          revokedAt: r.revoked_at ? new Date(r.revoked_at) : null,
+          createdAt: new Date(r.created_at),
+        };
+        this.sellerKeysById.set(k.id, k);
+        this.sellerKeysByPrefix.set(k.prefix, k);
+      }
+
+      const endpointRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, seller_id, method, route, display_name, description, last_price_micros, status, created_at FROM endpoints
+      `;
+      for (const r of endpointRows) {
+        const ep: EndpointRecord = {
+          id: r.id,
+          sellerId: r.seller_id,
+          method: r.method,
+          route: r.route,
+          displayName: r.display_name,
+          description: r.description,
+          lastPriceMicros: BigInt(r.last_price_micros),
+          status: r.status as "active" | "hidden",
+          createdAt: new Date(r.created_at),
+        };
+        this.endpointsById.set(ep.id, ep);
+        this.endpointsByComposite.set(`${ep.sellerId}:${ep.method.toUpperCase()}:${ep.route}`, ep);
+      }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load snapshot from database:", err);
+    }
+  }
+
+  /**
    * Creates a {@link FacilitatorService} and initializes an active Ed25519 signing key.
    *
    * @param config - Validated API configuration
    * @param paypal - Optional custom {@link PayPalGateway} instance
+   * @param dbHandle - Optional database connection handle
    * @returns Initialized {@link FacilitatorService}
    *
    * @example
@@ -411,8 +544,15 @@ export class FacilitatorService {
    * const service = await FacilitatorService.create(loadConfig());
    * ```
    */
-  static async create(config: ApiConfig, paypal?: PayPalGateway): Promise<FacilitatorService> {
-    const svc = new FacilitatorService(config, paypal);
+  static async create(
+    config: ApiConfig,
+    paypal?: PayPalGateway,
+    dbHandle?: DatabaseHandle,
+  ): Promise<FacilitatorService> {
+    const svc = new FacilitatorService(config, paypal, dbHandle);
+    if (dbHandle) {
+      await svc.initFromDatabase();
+    }
     const keyRecord = await generateSigningKeyRecord(config.MASTER_KEY);
     svc.signingKeys.set(keyRecord.kid, keyRecord);
     return svc;
@@ -534,6 +674,75 @@ export class FacilitatorService {
 
     let account = this.accountsByPayerId.get(identity.paypalPayerId);
     let isNewAccount = false;
+
+    if (!account && this.dbHandle) {
+      try {
+        const rows = await this.dbHandle.sql<Array<any>>`
+          SELECT id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at
+          FROM accounts WHERE paypal_payer_id = ${identity.paypalPayerId}
+        `;
+        if (rows.length > 0) {
+          const r = rows[0];
+          account = {
+            id: r.id,
+            paypalPayerId: r.paypal_payer_id,
+            paypalUserId: r.paypal_user_id,
+            email: r.email,
+            paypalVerifiedAccount: Boolean(r.paypal_verified_account),
+            displayName: r.display_name,
+            isBuyer: Boolean(r.is_buyer),
+            isSeller: Boolean(r.is_seller),
+            status: r.status as "active" | "frozen",
+            createdAt: new Date(r.created_at),
+          };
+          this.accountsById.set(account.id, account);
+          this.accountsByPayerId.set(account.paypalPayerId, account);
+
+          if (account.isBuyer && !this.walletsByAccountId.has(account.id)) {
+            const wRows = await this.dbHandle.sql<Array<any>>`
+              SELECT id, account_id, status, created_at FROM wallets WHERE account_id = ${account.id}
+            `;
+            if (wRows.length > 0) {
+              const wr = wRows[0];
+              const w: WalletRecord = {
+                id: wr.id,
+                accountId: wr.account_id,
+                status: wr.status as "active" | "frozen",
+                createdAt: new Date(wr.created_at),
+              };
+              this.wallets.set(w.id, w);
+              this.walletsByAccountId.set(w.accountId, w);
+              this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
+              this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
+            }
+          }
+          if (account.isSeller && !this.sellersByAccountId.has(account.id)) {
+            const sRows = await this.dbHandle.sql<Array<any>>`
+              SELECT id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at FROM sellers WHERE account_id = ${account.id}
+            `;
+            if (sRows.length > 0) {
+              const sr = sRows[0];
+              const s: SellerRecord = {
+                id: sr.id,
+                accountId: sr.account_id,
+                status: sr.status as "active" | "paused",
+                payoutPaypalPayerId: sr.payout_paypal_payer_id,
+                payoutEmail: sr.payout_email,
+                payoutMode: sr.payout_mode as "paypal" | "simulated",
+                createdAt: new Date(sr.created_at),
+              };
+              this.sellers.set(s.id, s);
+              this.sellersByAccountId.set(s.accountId, s);
+              this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
+              this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[FACILITATOR] Error querying account from DB:", err);
+      }
+    }
+
     if (!account) {
       isNewAccount = true;
       account = {
@@ -550,11 +759,24 @@ export class FacilitatorService {
       };
       this.accountsById.set(account.id, account);
       this.accountsByPayerId.set(account.paypalPayerId, account);
+      if (this.dbHandle) {
+        await this.dbHandle.sql`
+          INSERT INTO accounts (id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at)
+          VALUES (${account.id}, ${account.paypalPayerId}, ${account.paypalUserId}, ${account.email}, ${account.paypalVerifiedAccount}, ${account.displayName}, ${account.isBuyer}, ${account.isSeller}, ${account.status}, ${account.createdAt})
+          ON CONFLICT (paypal_payer_id) DO UPDATE SET email = EXCLUDED.email, paypal_verified_account = EXCLUDED.paypal_verified_account
+        `.catch((err) => console.warn("[DB] Failed to persist new account:", err));
+      }
     } else {
       account.email = identity.email;
       account.paypalVerifiedAccount = identity.verifiedAccount;
       if (!account.displayName && identity.displayName) {
         account.displayName = identity.displayName;
+      }
+      if (this.dbHandle) {
+        await this.dbHandle.sql`
+          UPDATE accounts SET email = ${account.email}, paypal_verified_account = ${account.paypalVerifiedAccount}, display_name = ${account.displayName}
+          WHERE id = ${account.id}
+        `.catch((err) => console.warn("[DB] Failed to update account on login:", err));
       }
     }
 
@@ -748,6 +970,13 @@ export class FacilitatorService {
       }
     }
 
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        UPDATE accounts SET display_name = ${account.displayName}, is_buyer = ${account.isBuyer}, is_seller = ${account.isSeller}
+        WHERE id = ${account.id}
+      `.catch((err) => console.warn("[DB] Failed to persist account profile update:", err));
+    }
+
     return {
       account,
       wallet: this.walletsByAccountId.get(account.id) ?? null,
@@ -803,6 +1032,13 @@ export class FacilitatorService {
     this.walletsByAccountId.set(accountId, record);
     this.ledger.ensureAccount(walletAvailAccountId(record.id), "W_AVAIL", record.id);
     this.ledger.ensureAccount(walletHeldAccountId(record.id), "W_HELD", record.id);
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        INSERT INTO wallets (id, account_id, status, created_at)
+        VALUES (${record.id}, ${record.accountId}, ${record.status}, ${record.createdAt})
+        ON CONFLICT (id) DO NOTHING
+      `.catch((err) => console.warn("[DB] Failed to persist wallet:", err));
+    }
     return record;
   }
 
@@ -1028,6 +1264,13 @@ export class FacilitatorService {
     this.sellersByAccountId.set(params.accountId, record);
     this.ledger.ensureAccount(sellerPendingAccountId(id), "S_PENDING", id);
     this.ledger.ensureAccount(sellerPayoutAccountId(id), "S_PAYOUT", id);
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        INSERT INTO sellers (id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at)
+        VALUES (${record.id}, ${record.accountId}, ${record.status}, ${record.payoutPaypalPayerId}, ${record.payoutEmail}, ${record.payoutMode}, ${record.createdAt})
+        ON CONFLICT (id) DO NOTHING
+      `.catch((err) => console.warn("[DB] Failed to persist seller:", err));
+    }
     return record;
   }
 

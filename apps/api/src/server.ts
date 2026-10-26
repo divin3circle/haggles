@@ -31,7 +31,7 @@ export async function startServer(): Promise<void> {
   }
 
   // Create shared facilitator instance for both routes and embedded worker tick
-  const facilitator = await FacilitatorService.create(config);
+  const facilitator = await FacilitatorService.create(config, undefined, dbHandle);
   const app = await buildApp({ config, dbHandle, facilitator });
 
   // Embedded background worker loop (runs periodic hold expiration, sweeps, and invariant checks)

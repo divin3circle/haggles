@@ -526,6 +526,25 @@ export class FacilitatorService {
         this.endpointsById.set(ep.id, ep);
         this.endpointsByComposite.set(`${ep.sellerId}:${ep.method.toUpperCase()}:${ep.route}`, ep);
       }
+
+      const sessionRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, account_id, token_hash, expires_at, absolute_expires_at, user_agent, ip, created_at
+        FROM sessions WHERE expires_at > now()
+      `;
+      for (const r of sessionRows) {
+        const s: SessionRecord = {
+          id: r.id,
+          accountId: r.account_id,
+          tokenHash: r.token_hash,
+          csrfToken: r.token_hash.slice(0, 32),
+          expiresAt: new Date(r.expires_at),
+          absoluteExpiresAt: new Date(r.absolute_expires_at),
+          userAgent: r.user_agent,
+          ip: r.ip,
+          createdAt: new Date(r.created_at),
+        };
+        this.sessionsByTokenHash.set(s.tokenHash, s);
+      }
     } catch (err) {
       console.warn("[FACILITATOR] Failed to load snapshot from database:", err);
     }
@@ -796,6 +815,13 @@ export class FacilitatorService {
       createdAt: now,
     };
     this.sessionsByTokenHash.set(tokenHash, session);
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        INSERT INTO sessions (id, account_id, token_hash, expires_at, absolute_expires_at, user_agent, ip, created_at)
+        VALUES (${session.id}, ${session.accountId}, ${session.tokenHash}, ${session.expiresAt}, ${session.absoluteExpiresAt}, ${session.userAgent}, ${session.ip}, ${session.createdAt})
+        ON CONFLICT (token_hash) DO NOTHING
+      `.catch((err) => console.warn("[DB] Failed to persist session:", err));
+    }
 
     this.recordAudit({
       accountId: account.id,

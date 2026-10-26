@@ -7,7 +7,7 @@ import {
   hwfStep,
   hwfWarmth,
 } from "@/components/landing/halftone-wordmark-footer";
-import { portalApi } from "@/lib/portal-api";
+import { portalApi, seedDemoPendingForTest } from "@/lib/portal-api";
 import { buildPortalCsp, proxy } from "@/proxy";
 
 describe("@haggles/portal CSP & Buyer/Seller state workflows (SPEC.md §§ 8.2, 11.4, 11.5)", () => {
@@ -84,6 +84,7 @@ describe("@haggles/portal CSP & Buyer/Seller state workflows (SPEC.md §§ 8.2, 
   });
 
   it("sweeps whole cents on seller payout requests and keeps sub-cent dust in pending", async () => {
+    seedDemoPendingForTest("3201500");
     const summaryBefore = await portalApi.getSellerSummary();
     expect(Number(summaryBefore.pending)).toBeGreaterThanOrEqual(1);
 

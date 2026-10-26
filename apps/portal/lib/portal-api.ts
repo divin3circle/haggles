@@ -231,288 +231,47 @@ interface DemoPortalState {
 }
 
 function buildInitialDemoState(): DemoPortalState {
-  const now = Date.now();
-  const iso = (offsetMs: number) => new Date(now - offsetMs).toISOString();
-
   return {
     account: {
-      id: "acc_01J9Z3SANDBOXDEMO00000001",
-      email: "builder@sandbox.paypal.example.com",
-      display_name: "Alex Rivera",
-      paypal_payer_id: "WDJJHEBZ4X2LY",
-      paypal_verified_account: true,
+      id: "acc_clean_sandbox",
+      email: "sandbox@haggles.dev",
+      display_name: null,
+      paypal_payer_id: "",
+      paypal_verified_account: false,
       is_buyer: true,
-      is_seller: true,
+      is_seller: false,
       status: "active",
-      wallet_id: "wal_01J9Z3SANDBOXDEMO00000001",
-      seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
+      wallet_id: null,
+      seller_id: null,
       environment: {
         haggles_env: "test",
         paypal_mode: "sandbox",
         public_api_url:
-          process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
+          process.env.NEXT_PUBLIC_API_URL ?? "https://haggles-api.onrender.com",
       },
     },
-    availableMicros: "12400000", // $12.40
-    heldMicros: "80000", // $0.08
-    pendingMicros: "3201500", // $3.2015 (includes $0.0015 sub-cent dust)
+    availableMicros: "0",
+    heldMicros: "0",
+    pendingMicros: "0",
     processingMicros: "0",
-    paidOutMicros: "41000000", // $41.00
-    agentKeys: [
-      {
-        id: "agk_01J9Z3KEYRESEARCHAGENT001",
-        name: "Research Agent (Gemini)",
-        prefix: "hgk_test_9fK2mP8x",
-        per_call_max: "0.10",
-        daily_max: "5.00",
-        monthly_max: "50.00",
-        allowed_sellers: null,
-        allowed_hosts: ["datasets.example.com", "poems.example.com"],
-        expires_at: null,
-        spent_today: "0.31",
-        status: "active",
-        last_used_at: iso(120_000),
-        revoked_at: null,
-        created_at: iso(5 * 86_400_000),
-      },
-      {
-        id: "agk_01J9Z3KEYMCPCLIENT0000002",
-        name: "Claude Desktop MCP",
-        prefix: "hgk_test_3vL7qW1z",
-        per_call_max: "0.05",
-        daily_max: "2.00",
-        monthly_max: null,
-        allowed_sellers: ["slr_01J9Y8SANDBOXDEMO00000001"],
-        allowed_hosts: null,
-        expires_at: null,
-        spent_today: "0.06",
-        status: "active",
-        last_used_at: iso(900_000),
-        revoked_at: null,
-        created_at: iso(3 * 86_400_000),
-      },
-    ],
-    topups: [
-      {
-        id: "top_01J9Z3TOPUP00000000000002",
-        amount: "10.00",
-        status: "credited",
-        paypal_order_id: "8XL491028B918273K",
-        paypal_capture_id: "2C91827364519823A",
-        created_at: iso(2 * 86_400_000),
-      },
-      {
-        id: "top_01J9Z3TOPUP00000000000001",
-        amount: "5.00",
-        status: "credited",
-        paypal_order_id: "4AB192837C654321M",
-        paypal_capture_id: "9K81726354192837B",
-        created_at: iso(7 * 86_400_000),
-      },
-    ],
-    buyerPayments: [
-      {
-        id: "pay_01J9Z3PAYMENT000000000004",
-        payment_id: "pay_01J9Z3PAYMENT000000000004",
-        status: "captured",
-        amount: "0.03",
-        currency: "USD",
-        method: "GET",
-        url: "https://datasets.example.com/datasets/rent-index?city=sf",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        agent_key_id: "agk_01J9Z3KEYRESEARCHAGENT001",
-        key_name: "Research Agent (Gemini)",
-        challenge_id: "chl_01J9Z3CHALLENGE0000000004",
-        authorized_at: iso(180_000),
-        expires_at: iso(120_000),
-        captured_at: iso(179_000),
-        released_at: null,
-        refunded_at: null,
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjMwMDEiLCJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwNCIsImF1ZCI6InNscl8wMUo5WThTQU5EQk9YREVNTzAwMDAwMDAxIiwiYW1vdW50IjoiMC4wMyIsImN1cnJlbmN5IjoiVVNEIn0.sig",
-        created_at: iso(180_000),
-      },
-      {
-        id: "pay_01J9Z3PAYMENT000000000003",
-        payment_id: "pay_01J9Z3PAYMENT000000000003",
-        status: "captured",
-        amount: "0.01",
-        currency: "USD",
-        method: "GET",
-        url: "https://datasets.example.com/datasets/transit-fares?city=sf",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        agent_key_id: "agk_01J9Z3KEYRESEARCHAGENT001",
-        key_name: "Research Agent (Gemini)",
-        challenge_id: "chl_01J9Z3CHALLENGE0000000003",
-        authorized_at: iso(420_000),
-        expires_at: iso(360_000),
-        captured_at: iso(419_000),
-        released_at: null,
-        refunded_at: null,
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjMwMDEiLCJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwMyIsImF1ZCI6InNscl8wMUo5WThTQU5EQk9YREVNTzAwMDAwMDAxIiwiYW1vdW50IjoiMC4wMSIsImN1cnJlbmN5IjoiVVNEIn0.sig",
-        created_at: iso(420_000),
-      },
-      {
-        id: "pay_01J9Z3PAYMENT000000000002",
-        payment_id: "pay_01J9Z3PAYMENT000000000002",
-        status: "captured",
-        amount: "0.02",
-        currency: "USD",
-        method: "GET",
-        url: "https://poems.example.com/poems/42",
-        seller_id: "slr_01J9Y8POEMSSELLER00000002",
-        agent_key_id: "agk_01J9Z3KEYMCPCLIENT0000002",
-        key_name: "Claude Desktop MCP",
-        challenge_id: "chl_01J9Z3CHALLENGE0000000002",
-        authorized_at: iso(1_800_000),
-        expires_at: iso(1_740_000),
-        captured_at: iso(1_799_000),
-        released_at: null,
-        refunded_at: null,
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwMiIsImFtb3VudCI6IjAuMDIifQ.sig",
-        created_at: iso(1_800_000),
-      },
-      {
-        id: "pay_01J9Z3PAYMENT000000000001",
-        payment_id: "pay_01J9Z3PAYMENT000000000001",
-        status: "refunded",
-        amount: "0.03",
-        currency: "USD",
-        method: "GET",
-        url: "https://datasets.example.com/datasets/rent-index?city=boston",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        agent_key_id: "agk_01J9Z3KEYRESEARCHAGENT001",
-        key_name: "Research Agent (Gemini)",
-        challenge_id: "chl_01J9Z3CHALLENGE0000000001",
-        authorized_at: iso(7_200_000),
-        expires_at: iso(7_140_000),
-        captured_at: iso(7_199_000),
-        released_at: null,
-        refunded_at: iso(7_195_000),
-        receipt: null,
-        created_at: iso(7_200_000),
-      },
-    ],
-    sellerEndpoints: [
-      {
-        id: "ep_01J9Z3ENDPOINT00000000001",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        method: "GET",
-        route: "/datasets/rent-index",
-        display_name: "Metro Rent Index API",
-        description: "Monthly median 1BR and 2BR rent index by US metro area",
-        last_price: "0.03",
-        calls_30d: 640,
-        revenue_30d: "18.24",
-        status: "active",
-        created_at: iso(14 * 86_400_000),
-      },
-      {
-        id: "ep_01J9Z3ENDPOINT00000000002",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        method: "GET",
-        route: "/datasets/transit-fares",
-        display_name: "Public Transit Fares",
-        description: "Single-ride and monthly pass transit fares by city",
-        last_price: "0.01",
-        calls_30d: 492,
-        revenue_30d: "4.674",
-        status: "active",
-        created_at: iso(12 * 86_400_000),
-      },
-      {
-        id: "ep_01J9Z3ENDPOINT00000000003",
-        seller_id: "slr_01J9Y8SANDBOXDEMO00000001",
-        method: "GET",
-        route: "/poems/:id",
-        display_name: "Anthology Poem by ID",
-        description: "Original and public-domain poetry collection",
-        last_price: "0.02",
-        calls_30d: 210,
-        revenue_30d: "3.99",
-        status: "active",
-        created_at: iso(10 * 86_400_000),
-      },
-    ],
-    sellerKeys: [
-      {
-        id: "slk_01J9Z3SELLERKEY0000000001",
-        name: "Production Hono Gateway",
-        prefix: "hgs_test_7pQ4nM2x",
-        status: "active",
-        last_used_at: iso(179_000),
-        revoked_at: null,
-        created_at: iso(14 * 86_400_000),
-      },
-    ],
-    sellerCalls: [
-      {
-        id: "pay_01J9Z3PAYMENT000000000004",
-        payment_id: "pay_01J9Z3PAYMENT000000000004",
-        status: "captured",
-        amount: "0.03",
-        fee: "0.0015",
-        seller_net: "0.0285",
-        method: "GET",
-        route: "/datasets/rent-index",
-        url: "https://datasets.example.com/datasets/rent-index?city=sf",
-        agent_ref: "a94f10c3e8",
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwNCJ9.sig",
-        captured_at: iso(179_000),
-        refunded_at: null,
-        created_at: iso(180_000),
-      },
-      {
-        id: "pay_01J9Z3PAYMENT000000000003",
-        payment_id: "pay_01J9Z3PAYMENT000000000003",
-        status: "captured",
-        amount: "0.01",
-        fee: "0.0005",
-        seller_net: "0.0095",
-        method: "GET",
-        route: "/datasets/transit-fares",
-        url: "https://datasets.example.com/datasets/transit-fares?city=sf",
-        agent_ref: "a94f10c3e8",
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwMyJ9.sig",
-        captured_at: iso(419_000),
-        refunded_at: null,
-        created_at: iso(420_000),
-      },
-      {
-        id: "pay_01J9Z3PAYMENT000000000002",
-        payment_id: "pay_01J9Z3PAYMENT000000000002",
-        status: "captured",
-        amount: "0.02",
-        fee: "0.001",
-        seller_net: "0.019",
-        method: "GET",
-        route: "/poems/:id",
-        url: "https://poems.example.com/poems/42",
-        agent_ref: "7c21d8b40a",
-        receipt: "eyJhbGciOiJFZERTQSIsInR5cCI6ImhhZ2dsZXMtcmVjZWlwdCtqd3QiLCJraWQiOiJraWRfMDFKOVozIn0.eyJzdWIiOiJwYXlfMDFKOVozUEFZTUVOVDAwMDAwMDAwMDAwMiJ9.sig",
-        captured_at: iso(1_799_000),
-        refunded_at: null,
-        created_at: iso(1_800_000),
-      },
-    ],
-    sellerPayouts: [
-      {
-        id: "pot_01J9Z3PAYOUT0000000000001",
-        amount: "41.00",
-        batch_ref: "hgb_01J9Z3BATCH00000000000001",
-        paypal_batch_id: "5ZJ91827364519823",
-        paypal_item_id: "8KL19283746519283",
-        paypal_fee: "0.25",
-        status: "succeeded",
-        mode: "paypal",
-        failure_reason: null,
-        requested_by: "schedule",
-        created_at: iso(6 * 86_400_000),
-      },
-    ],
+    paidOutMicros: "0",
+    agentKeys: [],
+    topups: [],
+    buyerPayments: [],
+    sellerEndpoints: [],
+    sellerKeys: [],
+    sellerCalls: [],
+    sellerPayouts: [],
   };
 }
 
 let memoryDemoState: DemoPortalState | null = null;
+
+export function seedDemoPendingForTest(micros: string = "3201500"): void {
+  const state = loadDemoState();
+  state.pendingMicros = micros;
+  saveDemoState(state);
+}
 
 function loadDemoState(): DemoPortalState {
   if (typeof window === "undefined") {
@@ -528,7 +287,18 @@ function loadDemoState(): DemoPortalState {
       window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw) as DemoPortalState;
+    const parsed = JSON.parse(raw) as DemoPortalState;
+    // Evict legacy mock/dummy state
+    if (
+      parsed.account?.email === "builder@sandbox.paypal.example.com" ||
+      parsed.availableMicros === "12400000"
+    ) {
+      window.localStorage.removeItem(DEMO_STORAGE_KEY);
+      const initial = buildInitialDemoState();
+      window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(initial));
+      return initial;
+    }
+    return parsed;
   } catch {
     return buildInitialDemoState();
   }
@@ -626,14 +396,14 @@ export const portalApi = {
     }
 
     return {
-      wallet_id: state.account.wallet_id ?? "wal_01J9Z3SANDBOXDEMO00000001",
+      wallet_id: state.account.wallet_id ?? "wal_clean_sandbox",
       status: state.account.status,
       available: formatMoney(BigInt(state.availableMicros)),
       held: formatMoney(BigInt(state.heldMicros)),
-      in_flight_count: BigInt(state.heldMicros) > 0n ? 2 : 0,
-      spent_today: "0.37",
+      in_flight_count: BigInt(state.heldMicros) > 0n ? 1 : 0,
+      spent_today: "0.00",
       smallest_daily_max: smallestDaily !== null ? formatMoney(smallestDaily) : null,
-      spent_30d: "4.17",
+      spent_30d: "0.00",
       recent_payments: state.buyerPayments.slice(0, 10).map((p) => ({
         payment_id: p.payment_id,
         status: p.status,
@@ -658,12 +428,10 @@ export const portalApi = {
     const series: Array<{ date: string; spent: string; count: number }> = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now - i * 86_400_000).toISOString().slice(0, 10);
-      const wave = ((days - i) * 7) % 19;
-      const micros = BigInt((wave + 3) * 10_000);
       series.push({
         date: d,
-        spent: formatMoney(micros),
-        count: Math.max(1, Math.floor(wave / 2)),
+        spent: "0.00",
+        count: 0,
       });
     }
     return series;
@@ -865,7 +633,7 @@ export const portalApi = {
 
     const state = loadDemoState();
     return {
-      seller_id: state.account.seller_id ?? "slr_01J9Y8SANDBOXDEMO00000001",
+      seller_id: state.account.seller_id ?? "slr_clean_sandbox",
       status: "active",
       payout_email: state.account.email,
       payout_paypal_payer_id: state.account.paypal_payer_id,
@@ -873,8 +641,8 @@ export const portalApi = {
       pending: formatMoney(BigInt(state.pendingMicros)),
       processing: formatMoney(BigInt(state.processingMicros)),
       paid_out: formatMoney(BigInt(state.paidOutMicros)),
-      calls_24h: 1284,
-      revenue_30d: "26.904",
+      calls_24h: 0,
+      revenue_30d: "0.00",
       top_endpoints: state.sellerEndpoints.slice(0, 5).map((ep) => ({
         id: ep.id,
         method: ep.method,
@@ -899,12 +667,10 @@ export const portalApi = {
     const series: Array<{ date: string; revenue: string; calls: number }> = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now - i * 86_400_000).toISOString().slice(0, 10);
-      const calls = 25 + (((days - i) * 13) % 45);
-      const revMicros = BigInt(calls) * 23_750n;
       series.push({
         date: d,
-        revenue: formatMoney(revMicros),
-        calls,
+        revenue: "0.00",
+        calls: 0,
       });
     }
     return series;

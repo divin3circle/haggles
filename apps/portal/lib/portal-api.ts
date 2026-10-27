@@ -599,6 +599,7 @@ export const portalApi = {
       amount: formatMoney(amountMicros),
       status: "created",
       paypal_order_id: `ORD_${Date.now().toString(36).toUpperCase()}`,
+      paypal_capture_id: null,
       created_at: new Date().toISOString(),
     };
     state.topups.unshift(newTopup);

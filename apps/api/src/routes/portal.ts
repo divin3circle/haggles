@@ -479,7 +479,7 @@ export async function registerPortalRoutes(
       if (request.body.revoke_all_sessions) {
         facilitator.revokeAllAccountSessions(account.id);
       }
-      const updated = facilitator.updateAccountProfile({
+      const updated = await facilitator.updateAccountProfile({
         accountId: account.id,
         displayName: request.body.display_name,
         isBuyer: request.body.is_buyer,
@@ -615,6 +615,7 @@ export async function registerPortalRoutes(
               : new Date(request.body.expires_at)
             : undefined,
       });
+      await facilitator.persistAgentKey(record);
 
       return reply.status(201).send({
         id: record.id,
@@ -712,6 +713,7 @@ export async function registerPortalRoutes(
               : new Date(request.body.expires_at)
             : undefined,
       });
+      await facilitator.persistAgentKeyUpdate(k);
 
       return {
         id: k.id,
@@ -745,6 +747,7 @@ export async function registerPortalRoutes(
       const { account } = requireAuth(request);
       const wallet = facilitator.getWalletForAccount(account.id);
       const k = facilitator.revokeAgentKey(request.params.id, new Date(), wallet.id);
+      await facilitator.persistAgentKeyRevoke(k.id, k.revokedAt ?? new Date());
       return {
         id: k.id,
         status: k.status,
@@ -1099,6 +1102,7 @@ export async function registerPortalRoutes(
         sellerId: seller.id,
         name: request.body.name,
       });
+      await facilitator.persistSellerKey(record);
       return reply.status(201).send({
         id: record.id,
         name: record.name,
@@ -1127,6 +1131,7 @@ export async function registerPortalRoutes(
       const { account } = requireAuth(request);
       const seller = facilitator.getSellerForAccount(account.id);
       const k = facilitator.revokeSellerKey(request.params.id, new Date(), seller.id);
+      await facilitator.persistSellerKeyRevoke(k.id, k.revokedAt ?? new Date());
       return {
         id: k.id,
         status: k.status,

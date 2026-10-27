@@ -5,7 +5,7 @@
  * Implements SPEC.md sections 4, 5.1, 5.2, 5.3, 6.2, 6.3, 7.1, 7.2, 7.3, 7.4, 8.1, 8.3, 8.4, and 8.5.
  */
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   type Challenge,
   ChallengeSchema,
@@ -527,6 +527,43 @@ export class FacilitatorService {
         this.endpointsByComposite.set(`${ep.sellerId}:${ep.method.toUpperCase()}:${ep.route}`, ep);
       }
 
+      const topupRows = await this.dbHandle.sql<Array<any>>`
+        SELECT id, wallet_id, amount_micros, paypal_order_id, paypal_capture_id, paypal_fee_micros, paypal_net_micros, status, created_at
+        FROM topups
+      `;
+      for (const r of topupRows) {
+        const t: TopupRecord = {
+          id: r.id,
+          walletId: r.wallet_id,
+          amountMicros: BigInt(r.amount_micros),
+          paypalOrderId: r.paypal_order_id,
+          paypalCaptureId: r.paypal_capture_id ?? null,
+          paypalFeeMicros: r.paypal_fee_micros ? BigInt(r.paypal_fee_micros) : null,
+          paypalNetMicros: r.paypal_net_micros ? BigInt(r.paypal_net_micros) : null,
+          status: r.status as TopupRecord["status"],
+          createdAt: new Date(r.created_at),
+        };
+        this.topupsById.set(t.id, t);
+        this.topupsByOrderId.set(t.paypalOrderId, t);
+        if (t.paypalCaptureId) {
+          this.topupsByCaptureId.set(t.paypalCaptureId, t);
+        }
+        if (t.status === "credited") {
+          try {
+            this.ledger.post(
+              buildTopupPostingPlan(
+                t.walletId,
+                t.id,
+                t.amountMicros,
+                t.paypalFeeMicros ?? 0n,
+              ),
+            );
+          } catch (e) {
+            console.warn("[FACILITATOR] Replay topup ledger error:", e);
+          }
+        }
+      }
+
       const sessionRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, account_id, token_hash, expires_at, absolute_expires_at, user_agent, ip, created_at
         FROM sessions WHERE expires_at > now()
@@ -536,7 +573,9 @@ export class FacilitatorService {
           id: r.id,
           accountId: r.account_id,
           tokenHash: r.token_hash,
-          csrfToken: r.token_hash.slice(0, 32),
+          csrfToken: createHmac("sha256", this.config.MASTER_KEY)
+            .update(r.token_hash)
+            .digest("base64url"),
           expiresAt: new Date(r.expires_at),
           absoluteExpiresAt: new Date(r.absolute_expires_at),
           userAgent: r.user_agent,
@@ -694,7 +733,7 @@ export class FacilitatorService {
     let account = this.accountsByPayerId.get(identity.paypalPayerId);
     let isNewAccount = false;
 
-    if (!account && this.dbHandle) {
+    if (this.dbHandle) {
       try {
         const rows = await this.dbHandle.sql<Array<any>>`
           SELECT id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at
@@ -800,8 +839,10 @@ export class FacilitatorService {
     }
 
     const sessionToken = randomBytes(32).toString("base64url");
-    const csrfToken = randomBytes(32).toString("base64url");
     const tokenHash = sha256Hex(sessionToken);
+    const csrfToken = createHmac("sha256", this.config.MASTER_KEY)
+      .update(tokenHash)
+      .digest("base64url");
 
     const session: SessionRecord = {
       id: `ses_${createId("acc").slice(4)}`,
@@ -933,16 +974,16 @@ export class FacilitatorService {
    * Automatically provisions the buyer wallet and/or seller record when enabled.
    * Forbids disabling a role while its balance is non-zero (SPEC.md section 11.6).
    */
-  updateAccountProfile(params: {
+  async updateAccountProfile(params: {
     accountId: string;
     displayName?: string | undefined;
     isBuyer?: boolean | undefined;
     isSeller?: boolean | undefined;
-  }): {
+  }): Promise<{
     account: AccountRecord;
     wallet: WalletRecord | null;
     seller: SellerRecord | null;
-  } {
+  }> {
     const account = this.accountsById.get(params.accountId);
     if (!account) {
       throw new HagglesError("Account not found.", { code: "not_found", status: 404 });
@@ -968,7 +1009,14 @@ export class FacilitatorService {
     } else if (params.isBuyer === true) {
       account.isBuyer = true;
       if (!this.walletsByAccountId.has(account.id)) {
-        this.createWallet(account.id);
+        const w = this.createWallet(account.id);
+        if (this.dbHandle) {
+          await this.dbHandle.sql`
+            INSERT INTO wallets (id, account_id, status, created_at)
+            VALUES (${w.id}, ${w.accountId}, ${w.status}, ${w.createdAt})
+            ON CONFLICT (id) DO NOTHING
+          `.catch((err) => console.warn("[DB] Failed to persist wallet:", err));
+        }
       }
     }
 
@@ -988,16 +1036,23 @@ export class FacilitatorService {
     } else if (params.isSeller === true) {
       account.isSeller = true;
       if (!this.sellersByAccountId.has(account.id)) {
-        this.createSeller({
+        const s = this.createSeller({
           accountId: account.id,
           payoutPaypalPayerId: account.paypalPayerId,
           payoutEmail: account.email,
         });
+        if (this.dbHandle) {
+          await this.dbHandle.sql`
+            INSERT INTO sellers (id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at)
+            VALUES (${s.id}, ${s.accountId}, ${s.status}, ${s.payoutPaypalPayerId}, ${s.payoutEmail}, ${s.payoutMode}, ${s.createdAt})
+            ON CONFLICT (id) DO NOTHING
+          `.catch((err) => console.warn("[DB] Failed to persist seller:", err));
+        }
       }
     }
 
     if (this.dbHandle) {
-      void this.dbHandle.sql`
+      await this.dbHandle.sql`
         UPDATE accounts SET display_name = ${account.displayName}, is_buyer = ${account.isBuyer}, is_seller = ${account.isSeller}
         WHERE id = ${account.id}
       `.catch((err) => console.warn("[DB] Failed to persist account profile update:", err));
@@ -1135,6 +1190,13 @@ export class FacilitatorService {
     };
     this.topupsById.set(record.id, record);
     this.topupsByOrderId.set(orderId, record);
+    if (this.dbHandle) {
+      await this.dbHandle.sql`
+        INSERT INTO topups (id, wallet_id, amount_micros, paypal_order_id, paypal_capture_id, paypal_fee_micros, paypal_net_micros, status, created_at)
+        VALUES (${record.id}, ${record.walletId}, ${record.amountMicros.toString()}, ${record.paypalOrderId}, ${record.paypalCaptureId}, ${record.paypalFeeMicros ? record.paypalFeeMicros.toString() : null}, ${record.paypalNetMicros ? record.paypalNetMicros.toString() : null}, ${record.status}, ${record.createdAt})
+        ON CONFLICT (id) DO NOTHING
+      `.catch((err) => console.warn("[DB] Failed to persist topup:", err));
+    }
 
     return { ...record, approveUrl };
   }
@@ -1184,6 +1246,18 @@ export class FacilitatorService {
         topup.status = "pending";
       } else {
         topup.status = "failed";
+      }
+
+      if (this.dbHandle) {
+        await this.dbHandle.sql`
+          UPDATE topups
+          SET status = ${topup.status},
+              paypal_capture_id = ${topup.paypalCaptureId},
+              paypal_fee_micros = ${topup.paypalFeeMicros ? topup.paypalFeeMicros.toString() : null},
+              paypal_net_micros = ${topup.paypalNetMicros ? topup.paypalNetMicros.toString() : null},
+              amount_micros = ${topup.amountMicros.toString()}
+          WHERE id = ${topup.id}
+        `.catch((err) => console.warn("[DB] Failed to update topup on capture:", err));
       }
 
       return topup;
@@ -1748,7 +1822,52 @@ export class FacilitatorService {
     };
     this.agentKeysById.set(record.id, record);
     this.agentKeysByPrefix.set(record.prefix, record);
+    if (this.dbHandle) {
+      void this.persistAgentKey(record);
+    }
     return { record, fullKey };
+  }
+
+  /**
+   * Persists a newly created agent key to PostgreSQL.
+   */
+  async persistAgentKey(record: AgentKeyRecord): Promise<void> {
+    if (!this.dbHandle) return;
+    await this.dbHandle.sql`
+      INSERT INTO agent_keys (id, wallet_id, name, prefix, key_hash, per_call_max_micros, daily_max_micros, monthly_max_micros, allowed_sellers, allowed_hosts, expires_at, status, last_used_at, revoked_at, created_at)
+      VALUES (${record.id}, ${record.walletId}, ${record.name}, ${record.prefix}, ${record.keyHash}, ${record.perCallMaxMicros.toString()}, ${record.dailyMaxMicros.toString()}, ${record.monthlyMaxMicros ? record.monthlyMaxMicros.toString() : null}, ${record.allowedSellers}, ${record.allowedHosts}, ${record.expiresAt}, ${record.status}, ${record.lastUsedAt}, ${record.revokedAt}, ${record.createdAt})
+      ON CONFLICT (id) DO NOTHING
+    `.catch((err) => console.warn("[DB] Failed to persist agent key:", err));
+  }
+
+  /**
+   * Updates an agent key in PostgreSQL.
+   */
+  async persistAgentKeyUpdate(record: AgentKeyRecord): Promise<void> {
+    if (!this.dbHandle) return;
+    await this.dbHandle.sql`
+      UPDATE agent_keys
+      SET name = ${record.name},
+          per_call_max_micros = ${record.perCallMaxMicros.toString()},
+          daily_max_micros = ${record.dailyMaxMicros.toString()},
+          monthly_max_micros = ${record.monthlyMaxMicros ? record.monthlyMaxMicros.toString() : null},
+          allowed_sellers = ${record.allowedSellers},
+          allowed_hosts = ${record.allowedHosts},
+          expires_at = ${record.expiresAt}
+      WHERE id = ${record.id}
+    `.catch((err) => console.warn("[DB] Failed to update agent key:", err));
+  }
+
+  /**
+   * Marks an agent key revoked in PostgreSQL.
+   */
+  async persistAgentKeyRevoke(keyId: string, revokedAt: Date): Promise<void> {
+    if (!this.dbHandle) return;
+    await this.dbHandle.sql`
+      UPDATE agent_keys
+      SET status = 'revoked', revoked_at = ${revokedAt}
+      WHERE id = ${keyId}
+    `.catch((err) => console.warn("[DB] Failed to revoke agent key:", err));
   }
 
   /**
@@ -1799,6 +1918,9 @@ export class FacilitatorService {
         : null;
     }
     if (updates.expiresAt !== undefined) key.expiresAt = updates.expiresAt;
+    if (this.dbHandle) {
+      void this.persistAgentKeyUpdate(key);
+    }
     return key;
   }
 
@@ -1812,6 +1934,9 @@ export class FacilitatorService {
     }
     key.status = "revoked";
     key.revokedAt = now;
+    if (this.dbHandle) {
+      void this.persistAgentKeyRevoke(key.id, now);
+    }
     return key;
   }
 
@@ -1855,7 +1980,34 @@ export class FacilitatorService {
     };
     this.sellerKeysById.set(record.id, record);
     this.sellerKeysByPrefix.set(record.prefix, record);
+    if (this.dbHandle) {
+      void this.persistSellerKey(record);
+    }
     return { record, fullKey };
+  }
+
+  /**
+   * Persists a newly created seller key to PostgreSQL.
+   */
+  async persistSellerKey(record: SellerKeyRecord): Promise<void> {
+    if (!this.dbHandle) return;
+    await this.dbHandle.sql`
+      INSERT INTO seller_keys (id, seller_id, name, prefix, key_hash, status, last_used_at, revoked_at, created_at)
+      VALUES (${record.id}, ${record.sellerId}, ${record.name}, ${record.prefix}, ${record.keyHash}, ${record.status}, ${record.lastUsedAt}, ${record.revokedAt}, ${record.createdAt})
+      ON CONFLICT (id) DO NOTHING
+    `.catch((err) => console.warn("[DB] Failed to persist seller key:", err));
+  }
+
+  /**
+   * Marks a seller key revoked in PostgreSQL.
+   */
+  async persistSellerKeyRevoke(keyId: string, revokedAt: Date): Promise<void> {
+    if (!this.dbHandle) return;
+    await this.dbHandle.sql`
+      UPDATE seller_keys
+      SET status = 'revoked', revoked_at = ${revokedAt}
+      WHERE id = ${keyId}
+    `.catch((err) => console.warn("[DB] Failed to revoke seller key:", err));
   }
 
   /**
@@ -1877,6 +2029,9 @@ export class FacilitatorService {
     }
     key.status = "revoked";
     key.revokedAt = now;
+    if (this.dbHandle) {
+      void this.persistSellerKeyRevoke(key.id, now);
+    }
     return key;
   }
 

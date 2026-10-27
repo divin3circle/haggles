@@ -89,7 +89,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [collapsed, setCollapsed] = React.useState(false);
   const [account, setAccount] = React.useState<PortalAccountProfile | null>(null);
-  const [availableBalance, setAvailableBalance] = React.useState<string>("12.40");
+  const [availableBalance, setAvailableBalance] = React.useState<string>("0.00");
 
   React.useEffect(() => {
     try {

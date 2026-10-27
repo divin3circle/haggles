@@ -233,7 +233,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     );
   });
 
-  const facilitator = options.facilitator ?? (await FacilitatorService.create(config));
+  const facilitator =
+    options.facilitator ?? (await FacilitatorService.create(config, undefined, options.dbHandle));
 
   await registerHealthRoutes(app, {
     dbHandle: options.dbHandle,

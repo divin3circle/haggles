@@ -106,25 +106,33 @@ export default function SellerKeysPage() {
       {
         headerName: "Actions",
         field: "id",
-        minWidth: 120,
+        minWidth: 100,
         sortable: false,
         cellRenderer: (params: ICellRendererParams<PortalSellerKey>) => {
           const row = params.data;
           if (!row || row.status === "revoked") {
-            return <span className="text-xs text-muted-foreground">Revoked</span>;
+            return (
+              <div className="flex h-full items-center">
+                <span className="text-xs text-muted-foreground">Revoked</span>
+              </div>
+            );
           }
           return (
-            <Button
-              variant="destructive"
-              size="xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                setRevokeTarget(row);
-              }}
-            >
-              <IconTrash className="size-3" />
-              Revoke
-            </Button>
+            <div className="flex h-full items-center">
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRevokeTarget(row);
+                }}
+                className="h-7 w-7 p-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                title="Revoke key"
+                aria-label="Revoke key"
+              >
+                <IconTrash className="size-3.5" />
+              </Button>
+            </div>
           );
         },
       },

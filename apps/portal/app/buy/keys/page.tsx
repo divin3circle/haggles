@@ -217,7 +217,7 @@ export default function BuyerKeysPage() {
       {
         headerName: "Actions",
         field: "id",
-        minWidth: 195,
+        minWidth: 155,
         sortable: false,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) => {
           const row = params.data;
@@ -249,10 +249,11 @@ export default function BuyerKeysPage() {
                   e.stopPropagation();
                   setRevokeTarget(row);
                 }}
-                className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="h-7 w-7 p-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                title="Revoke key"
+                aria-label="Revoke key"
               >
                 <IconTrash className="size-3.5" />
-                Revoke
               </Button>
             </div>
           );

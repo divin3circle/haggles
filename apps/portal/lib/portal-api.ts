@@ -316,6 +316,11 @@ function saveDemoState(state: DemoPortalState): void {
   }
 }
 
+function isPayPalAuth(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem("haggles_auth_mode") === "paypal";
+}
+
 async function tryApiFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   try {
     const method = (init?.method ?? "GET").toUpperCase();
@@ -334,7 +339,21 @@ async function tryApiFetch<T>(path: string, init?: RequestInit): Promise<T | nul
       headers,
       credentials: "include",
     });
+    if (res.status === 401) {
+      if (typeof window !== "undefined") {
+        const authMode = window.localStorage.getItem("haggles_auth_mode");
+        if (authMode === "paypal") {
+          window.localStorage.removeItem("haggles_auth_mode");
+          window.location.href = "/login?expired=1";
+          return null;
+        }
+      }
+      return null;
+    }
     if (!res.ok) return null;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("haggles_auth_mode", "paypal");
+    }
     return (await res.json()) as T;
   } catch {
     return null;
@@ -348,6 +367,9 @@ export const portalApi = {
   async getMe(): Promise<PortalAccountProfile> {
     const live = await tryApiFetch<PortalAccountProfile>("/portal/v1/me");
     if (live) return live;
+    if (isPayPalAuth()) {
+      throw new Error("PayPal session expired. Redirecting to sign in...");
+    }
     return loadDemoState().account;
   },
 
@@ -386,6 +408,19 @@ export const portalApi = {
   async getBuyerSummary(): Promise<PortalBuyerSummary> {
     const live = await tryApiFetch<PortalBuyerSummary>("/portal/v1/buyer/summary");
     if (live) return live;
+    if (isPayPalAuth()) {
+      return {
+        wallet_id: "",
+        status: "active",
+        available: "0.00",
+        held: "0.00",
+        in_flight_count: 0,
+        spent_today: "0.00",
+        smallest_daily_max: null,
+        spent_30d: "0.00",
+        recent_payments: [],
+      };
+    }
 
     const state = loadDemoState();
     const activeKeys = state.agentKeys.filter((k) => k.status === "active");
@@ -440,6 +475,7 @@ export const portalApi = {
   async listBuyerKeys(): Promise<PortalAgentKey[]> {
     const live = await tryApiFetch<{ data: PortalAgentKey[] }>("/portal/v1/buyer/keys");
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
     return loadDemoState().agentKeys;
   },
 
@@ -556,6 +592,7 @@ export const portalApi = {
       `/portal/v1/buyer/payments${qs ? `?${qs}` : ""}`,
     );
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
 
     let items = loadDemoState().buyerPayments;
     if (filters?.key) items = items.filter((p) => p.agent_key_id === filters.key);
@@ -570,6 +607,7 @@ export const portalApi = {
   async listBuyerTopups(): Promise<PortalTopup[]> {
     const live = await tryApiFetch<{ data: PortalTopup[] }>("/portal/v1/buyer/topups");
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
     return loadDemoState().topups;
   },
 
@@ -679,6 +717,22 @@ export const portalApi = {
   async getSellerSummary(): Promise<PortalSellerSummary> {
     const live = await tryApiFetch<PortalSellerSummary>("/portal/v1/seller/summary");
     if (live) return live;
+    if (isPayPalAuth()) {
+      return {
+        seller_id: "",
+        status: "active",
+        payout_email: "",
+        payout_paypal_payer_id: "",
+        payout_mode: "paypal",
+        pending: "0.00",
+        processing: "0.00",
+        paid_out: "0.00",
+        calls_24h: 0,
+        revenue_30d: "0.00",
+        top_endpoints: [],
+        recent_calls: [],
+      };
+    }
 
     const state = loadDemoState();
     return {
@@ -728,6 +782,7 @@ export const portalApi = {
   async listSellerEndpoints(): Promise<PortalSellerEndpoint[]> {
     const live = await tryApiFetch<{ data: PortalSellerEndpoint[] }>("/portal/v1/seller/endpoints");
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
     return loadDemoState().sellerEndpoints;
   },
 
@@ -770,6 +825,7 @@ export const portalApi = {
       `/portal/v1/seller/calls${qs ? `?${qs}` : ""}`,
     );
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
 
     let calls = loadDemoState().sellerCalls;
     if (filters?.endpoint) calls = calls.filter((c) => c.route === filters.endpoint);
@@ -795,6 +851,7 @@ export const portalApi = {
   async listSellerPayouts(): Promise<PortalSellerPayout[]> {
     const live = await tryApiFetch<{ data: PortalSellerPayout[] }>("/portal/v1/seller/payouts");
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
     return loadDemoState().sellerPayouts;
   },
 
@@ -834,6 +891,7 @@ export const portalApi = {
   async listSellerKeys(): Promise<PortalSellerKey[]> {
     const live = await tryApiFetch<{ data: PortalSellerKey[] }>("/portal/v1/seller/keys");
     if (live?.data) return live.data;
+    if (isPayPalAuth()) return [];
     return loadDemoState().sellerKeys;
   },
 

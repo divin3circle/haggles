@@ -34,7 +34,13 @@ export function SignInCard() {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const errParam = params.get("error")
-    if (errParam) {
+    const expiredParam = params.get("expired")
+    if (expiredParam) {
+      const msg = "Your PayPal session has expired. Please sign in again."
+      setError(msg)
+      haloToast.error("Session expired", msg)
+      window.history.replaceState({}, "", "/login")
+    } else if (errParam) {
       setError(errParam)
       haloToast.error("PayPal sign-in failed", errParam)
     }
@@ -43,6 +49,9 @@ export function SignInCard() {
   const handlePayPalLogin = async () => {
     setError("")
     setLoadingPayPal(true)
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("haggles_auth_mode", "paypal")
+    }
     try {
       const res = await fetch("/portal/v1/auth/paypal/start", {
         headers: { accept: "application/json" },
@@ -132,6 +141,11 @@ export function SignInCard() {
 
         <Link
           href="/buy"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("haggles_auth_mode", "demo")
+            }
+          }}
           className="flex w-full items-center justify-center gap-2 rounded-full border border-border/80 bg-secondary/70 px-5 py-3 text-sm font-medium text-foreground shadow-xs transition-all hover:bg-secondary dark:border-white/12 dark:bg-gradient-to-b dark:from-[#232526] dark:to-[#2d2e30] dark:text-white dark:hover:brightness-110"
         >
           <IconPlayerPlay className="size-4 text-primary dark:text-white/85" />

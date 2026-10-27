@@ -13,7 +13,7 @@
     "dev": "bun run dev:portal",
     "dev:portal": "bun --filter @haggles/portal dev",
     "dev:api": "bun --filter @haggles/api dev",
-    "build:packages": "bun --filter @haggles/core build && bun --filter @haggles/client build && bun --filter @haggles/server build",
+    "build:packages": "bun --filter @haggles/core build && bun --filter @haggles/client build && bun --filter @haggles/server build && bun --filter @haggles/api build",
     "build": "bun run build:packages && bun --filter '*' build",
     "lint": "bun --filter '*' lint",
     "typecheck": "bun --filter '*' typecheck",

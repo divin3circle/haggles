@@ -573,49 +573,78 @@ export const portalApi = {
     return loadDemoState().topups;
   },
 
-  async createAndCaptureTopup(amountUsd: string): Promise<PortalTopup> {
+  async createTopup(amountUsd: string): Promise<{ id: string; order_id: string; approve_url?: string }> {
     const amountMicros = parseMoney(amountUsd);
     if (amountMicros < 5_000_000n || amountMicros > 100_000_000n) {
       throw new Error("Top-up amount must be between $5.00 and $100.00.");
     }
 
-    const created = await tryApiFetch<{ id: string; order_id: string }>(
+    const created = await tryApiFetch<{ id: string; order_id: string; approve_url?: string }>(
       "/portal/v1/buyer/topups",
       {
         method: "POST",
         body: JSON.stringify({ amount: formatMoney(amountMicros) }),
       },
     );
-    if (created) {
-      const captured = await tryApiFetch<{
-        id: string;
-        order_id: string;
-        capture_id: string | null;
-        amount: string;
-        status: PortalTopup["status"];
-      }>(`/portal/v1/buyer/topups/${created.id}/capture`, {
-        method: "POST",
-      });
-      if (captured) {
-        return {
-          id: captured.id,
-          amount: captured.amount,
-          status: captured.status,
-          paypal_order_id: captured.order_id,
-          paypal_capture_id: captured.capture_id,
-          created_at: new Date().toISOString(),
-        };
-      }
-    }
+    if (created) return created;
 
     const state = loadDemoState();
     const currentTotal = BigInt(state.availableMicros) + BigInt(state.heldMicros);
     if (currentTotal + amountMicros > 500_000_000n) {
       throw new Error("Top-up would exceed the $500.00 maximum wallet balance.");
     }
+    const id = `top_01J9Z3${Date.now().toString(36).toUpperCase()}`;
+    const newTopup: PortalTopup = {
+      id,
+      amount: formatMoney(amountMicros),
+      status: "created",
+      paypal_order_id: `ORD_${Date.now().toString(36).toUpperCase()}`,
+      created_at: new Date().toISOString(),
+    };
+    state.topups.unshift(newTopup);
+    saveDemoState(state);
+    return {
+      id,
+      order_id: newTopup.paypal_order_id,
+    };
+  },
+
+  async captureTopup(topupId: string): Promise<PortalTopup> {
+    const captured = await tryApiFetch<{
+      id: string;
+      order_id: string;
+      capture_id: string | null;
+      amount: string;
+      status: PortalTopup["status"];
+    }>(`/portal/v1/buyer/topups/${topupId}/capture`, {
+      method: "POST",
+    });
+    if (captured) {
+      return {
+        id: captured.id,
+        amount: captured.amount,
+        status: captured.status,
+        paypal_order_id: captured.order_id,
+        paypal_capture_id: captured.capture_id,
+        created_at: new Date().toISOString(),
+      };
+    }
+
+    const state = loadDemoState();
+    const existing = state.topups.find((t) => t.id === topupId);
+    if (existing) {
+      if (existing.status !== "credited") {
+        existing.status = "credited";
+        existing.paypal_capture_id = `CAP_${Date.now().toString(36).toUpperCase()}`;
+        state.availableMicros = (BigInt(state.availableMicros) + parseMoney(existing.amount)).toString();
+        saveDemoState(state);
+      }
+      return existing;
+    }
+    const amountMicros = 10_000_000n;
     state.availableMicros = (BigInt(state.availableMicros) + amountMicros).toString();
     const newTopup: PortalTopup = {
-      id: `top_01J9Z3${Date.now().toString(36).toUpperCase()}`,
+      id: topupId,
       amount: formatMoney(amountMicros),
       status: "credited",
       paypal_order_id: `ORD_${Date.now().toString(36).toUpperCase()}`,
@@ -625,6 +654,25 @@ export const portalApi = {
     state.topups.unshift(newTopup);
     saveDemoState(state);
     return newTopup;
+  },
+
+  async createAndCaptureTopup(amountUsd: string): Promise<PortalTopup> {
+    const amountMicros = parseMoney(amountUsd);
+    if (amountMicros < 5_000_000n || amountMicros > 100_000_000n) {
+      throw new Error("Top-up amount must be between $5.00 and $100.00.");
+    }
+
+    const created = await this.createTopup(amountUsd);
+    try {
+      return await this.captureTopup(created.id);
+    } catch {
+      // If direct capture fails (e.g. PayPal requires customer redirect approval),
+      // forward user to approve_url if available
+      if (created.approve_url && typeof window !== "undefined") {
+        window.location.href = created.approve_url;
+      }
+      throw new Error("Approval required: redirecting to PayPal checkout.");
+    }
   },
 
   async getSellerSummary(): Promise<PortalSellerSummary> {

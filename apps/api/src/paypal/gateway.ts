@@ -6,7 +6,7 @@
  * Never logs secrets, tokens, or full PayPal payloads (SPEC.md section 0.2 rule 6).
  */
 
-import { createId, formatMoney, parseMoney } from "@haggles/core";
+import { createId, formatMoney, HagglesError, parseMoney } from "@haggles/core";
 import type { ApiConfig } from "../config.js";
 
 const SANDBOX_API_BASE = "https://api-m.sandbox.paypal.com";
@@ -550,6 +550,7 @@ export class SandboxPayPalGateway implements PayPalGateway {
     amountMicros: bigint;
   }): Promise<{ orderId: string; approveUrl: string }> {
     const value = formatMoney(params.amountMicros);
+    const portalOrigin = this.config.PUBLIC_PORTAL_URL.replace(/\/$/, "");
     const res = await this.requestWithAuth("/v2/checkout/orders", {
       method: "POST",
       requestId: params.topupId,
@@ -561,6 +562,12 @@ export class SandboxPayPalGateway implements PayPalGateway {
             amount: { currency_code: "USD", value },
           },
         ],
+        application_context: {
+          return_url: `${portalOrigin}/buy/wallet?topup_id=${params.topupId}&action=capture`,
+          cancel_url: `${portalOrigin}/buy/wallet?topup_id=${params.topupId}&action=cancel`,
+          brand_name: "Haggles",
+          user_action: "PAY_NOW",
+        },
       }),
     });
     if (!res.ok) {
@@ -586,7 +593,20 @@ export class SandboxPayPalGateway implements PayPalGateway {
       requestId: `${params.topupId}:capture`,
     });
     if (!res.ok) {
-      throw new Error(`PayPal captureOrder failed with HTTP ${res.status}`);
+      const errBody = (await res.json().catch(() => null)) as {
+        name?: string;
+        message?: string;
+        details?: Array<{ issue?: string; description?: string }>;
+      } | null;
+      const issue = errBody?.details?.[0]?.issue ?? errBody?.name ?? `HTTP_${res.status}`;
+      const msg = errBody?.details?.[0]?.description ?? errBody?.message ?? `PayPal captureOrder failed with status ${res.status}`;
+      if (issue === "ORDER_NOT_APPROVED") {
+        throw new HagglesError("PayPal order has not been approved yet. Please complete checkout at PayPal first.", {
+          code: "policy_violation",
+          status: 422,
+        });
+      }
+      throw new Error(`PayPal captureOrder failed (${issue}): ${msg}`);
     }
     const data = (await res.json()) as { purchase_units?: Array<Record<string, unknown>> };
     const details = this.extractCaptureDetails(data.purchase_units?.[0]);

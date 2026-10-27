@@ -24,6 +24,7 @@ import {
   TruncatedId,
 } from "@/components/haggles/primitives";
 import { Button } from "@/components/ui/button";
+import { haloToast } from "@/components/ui/halo-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,6 +42,7 @@ export default function BuyerWalletPage() {
   const [amount, setAmount] = React.useState("10.00");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const pendingTopupIdRef = React.useRef<string>("");
 
   const refresh = React.useCallback(async () => {
     const [sum, list] = await Promise.all([
@@ -55,13 +57,44 @@ export default function BuyerWalletPage() {
     void refresh();
   }, [refresh]);
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const topupId = params.get("topup_id");
+    const action = params.get("action");
+    if (topupId && action === "capture") {
+      window.history.replaceState({}, "", "/buy/wallet");
+      setSubmitting(true);
+      portalApi
+        .captureTopup(topupId)
+        .then((rec) => {
+          haloToast.success("Wallet Funded!", `Captured ${rec.amount} and credited to your wallet.`);
+          return refresh();
+        })
+        .catch((err) => {
+          haloToast.error("Capture Failed", err instanceof Error ? err.message : "Failed to capture top-up");
+        })
+        .finally(() => {
+          setSubmitting(false);
+        });
+    } else if (action === "cancel") {
+      window.history.replaceState({}, "", "/buy/wallet");
+      haloToast.info("Top-up Cancelled", "PayPal checkout was cancelled.");
+    }
+  }, [refresh]);
+
   const handleSandboxTopup = async () => {
     setError(null);
     setSubmitting(true);
     try {
-      await portalApi.createAndCaptureTopup(amount);
+      const topup = await portalApi.createTopup(amount);
+      if (topup.approve_url) {
+        window.location.href = topup.approve_url;
+        return;
+      }
+      await portalApi.captureTopup(topup.id);
       await refresh();
       setModalOpen(false);
+      haloToast.success("Top-up Credited", `Added $${amount} to your agent wallet.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Top-up failed");
     } finally {
@@ -242,7 +275,7 @@ export default function BuyerWalletPage() {
               >
                 <IconBrandPaypal className="size-4" />
                 {submitting
-                  ? "Capturing PayPal Order..."
+                  ? "Redirecting to PayPal..."
                   : `Pay $${amount} with PayPal Sandbox`}
               </Button>
 
@@ -258,10 +291,15 @@ export default function BuyerWalletPage() {
                     <PayPalButtons
                       style={{ layout: "horizontal", height: 38 }}
                       createOrder={async () => {
-                        const topup = await portalApi.createAndCaptureTopup(amount);
-                        return topup.paypal_order_id;
+                        const topup = await portalApi.createTopup(amount);
+                        pendingTopupIdRef.current = topup.id;
+                        return topup.order_id;
                       }}
                       onApprove={async () => {
+                        if (pendingTopupIdRef.current) {
+                          const rec = await portalApi.captureTopup(pendingTopupIdRef.current);
+                          haloToast.success("Top-up Successful!", `Captured ${rec.amount} and credited to your wallet.`);
+                        }
                         await refresh();
                         setModalOpen(false);
                       }}

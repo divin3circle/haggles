@@ -159,8 +159,8 @@ export function AppShell({
   };
 
   const renderSidebarContent = (isCompact: boolean) => (
-    <div className="flex h-full flex-col justify-between">
-      <div className={cn("space-y-6", isCompact ? "px-2 py-4" : "p-4")}>
+    <div className="flex h-full flex-col justify-between overflow-hidden">
+      <div className={cn("flex-1 space-y-6 overflow-y-auto", isCompact ? "px-2 py-4" : "p-4")}>
         <div
           className={cn(
             "flex items-center",
@@ -291,7 +291,7 @@ export function AppShell({
       {/* Bottom links */}
       <div
         className={cn(
-          "space-y-1 border-t border-sidebar-border",
+          "shrink-0 space-y-1 border-t border-sidebar-border",
           isCompact ? "px-2 py-3" : "p-4",
         )}
       >
@@ -328,14 +328,14 @@ export function AppShell({
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       <SandboxBanner mode={account?.environment.paypal_mode ?? "sandbox"} />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         {/* Desktop Collapsible Sidebar (md+) */}
         <aside
           className={cn(
-            "hidden shrink-0 border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out md:block",
+            "hidden shrink-0 border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out md:flex md:flex-col h-full",
             collapsed ? "w-15" : "w-56",
           )}
         >
@@ -349,16 +349,16 @@ export function AppShell({
               className="fixed inset-0 bg-black/50"
               onClick={() => setMobileOpen(false)}
             />
-            <aside className="relative z-10 w-64 border-r border-sidebar-border bg-sidebar">
+            <aside className="relative z-10 w-64 border-r border-sidebar-border bg-sidebar h-full">
               {renderSidebarContent(false)}
             </aside>
           </div>
         ) : null}
 
         {/* Main Column */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Header */}
-          <header className="flex h-13 items-center justify-between border-b border-border bg-card/50 px-4 md:px-6">
+          <header className="shrink-0 flex h-13 items-center justify-between border-b border-border bg-card/50 px-4 md:px-6">
             <div className="flex items-center gap-2.5">
               {/* Mobile menu trigger */}
               <button
@@ -440,7 +440,7 @@ export function AppShell({
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
             <div className="mx-auto max-w-6xl space-y-6">
               {description || actions ? (
                 <div className="flex flex-wrap items-start justify-between gap-4">

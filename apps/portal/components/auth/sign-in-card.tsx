@@ -11,28 +11,11 @@ import {
   IconArrowRight,
   IconBrandPaypal,
   IconPlayerPlay,
-  IconShieldCheck,
-  IconWallet,
 } from "@tabler/icons-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import * as React from "react"
 import { haloToast } from "@/components/ui/halo-toast"
-
-const CAPABILITY_PILLS = [
-  {
-    icon: IconShieldCheck,
-    title: "Verified PayPal identity",
-    detail: "Binds your immutable PayPal payer_id with zero passwords stored.",
-  },
-  {
-    icon: IconWallet,
-    title: "Unified buyer & seller rails",
-    detail:
-      "Top up agent wallets via Orders v2 and receive Payouts v1 automatically.",
-  },
-]
 
 /**
  * Interactive sign-in card body for `/login`.
@@ -45,7 +28,6 @@ const CAPABILITY_PILLS = [
  * ```
  */
 export function SignInCard() {
-  const router = useRouter()
   const [loadingPayPal, setLoadingPayPal] = React.useState(false)
   const [error, setError] = React.useState("")
 

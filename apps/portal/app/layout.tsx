@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google"
+import { Geist_Mono, Space_Grotesk } from "next/font/google"
 import { headers } from "next/headers"
 
 import "./globals.css"

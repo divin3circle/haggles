@@ -2,13 +2,13 @@
  * 5-minute Buyer Quickstart (`@haggles/client`) — compiled in CI (SPEC.md section 13.2).
  */
 
-import { createHaggles, readReceipt } from "@haggles/client";
+import { createHaggles, readReceipt, type HagglesPaymentEvent } from "@haggles/client";
 
 export async function runBuyerQuickstart(): Promise<void> {
   const haggles = createHaggles({
     agentKey: process.env.HAGGLES_KEY!,
     maxPricePerCall: "0.10",
-    onPayment: (event) => {
+    onPayment: (event: HagglesPaymentEvent) => {
       console.log(`Paid $${event.amount} to ${event.sellerId} (${event.paymentId})`);
     },
   });

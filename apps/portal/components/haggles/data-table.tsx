@@ -166,6 +166,7 @@ export function DataTable<T extends object>({
           theme={hagglesGridTheme}
           rowData={rows}
           columnDefs={columns}
+          rowHeight={48}
           domLayout="autoHeight"
           pagination={rows.length > pageSize}
           paginationPageSize={pageSize}

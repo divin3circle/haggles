@@ -211,7 +211,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium capitalize",
+        "inline-flex h-6 items-center justify-center self-center rounded-md border px-2.5 text-[11px] font-medium leading-none capitalize shrink-0 select-none",
         variantClass,
         className,
       )}
@@ -286,31 +286,49 @@ export function PolicySummary({
   monthlyMax,
   allowedHosts,
   allowedSellers,
+  className,
 }: {
   perCallMax: string;
   dailyMax: string;
   monthlyMax?: string | null | undefined;
   allowedHosts?: string[] | null | undefined;
   allowedSellers?: string[] | null | undefined;
+  className?: string | undefined;
 }) {
+  const parts: string[] = [`≤ $${perCallMax}/call`, `$${dailyMax}/day`];
+  if (monthlyMax) parts.push(`$${monthlyMax}/mo`);
+  if (allowedHosts && allowedHosts.length > 0) {
+    parts.push(`${allowedHosts.length} host${allowedHosts.length > 1 ? "s" : ""}`);
+  }
+  if (allowedSellers && allowedSellers.length > 0) {
+    parts.push(`${allowedSellers.length} seller${allowedSellers.length > 1 ? "s" : ""}`);
+  }
+  const fullText = parts.join(" · ");
+
   return (
-    <span className="inline-flex flex-wrap items-center gap-1.5 font-mono text-xs text-muted-foreground">
-      <span>≤ ${perCallMax}/call</span>
-      <span>·</span>
-      <span>${dailyMax}/day</span>
+    <span
+      title={fullText}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 font-mono text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis select-none",
+        className,
+      )}
+    >
+      <span className="shrink-0">≤ ${perCallMax}/call</span>
+      <span className="shrink-0">·</span>
+      <span className="shrink-0">${dailyMax}/day</span>
       {monthlyMax ? (
         <>
-          <span>·</span>
-          <span>${monthlyMax}/mo</span>
+          <span className="shrink-0">·</span>
+          <span className="shrink-0">${monthlyMax}/mo</span>
         </>
       ) : null}
       {allowedHosts && allowedHosts.length > 0 ? (
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px]">
           {allowedHosts.length} host{allowedHosts.length > 1 ? "s" : ""}
         </span>
       ) : null}
       {allowedSellers && allowedSellers.length > 0 ? (
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px]">
           {allowedSellers.length} seller{allowedSellers.length > 1 ? "s" : ""}
         </span>
       ) : null}

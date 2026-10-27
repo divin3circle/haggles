@@ -128,3 +128,15 @@
     @apply font-sans;
     }
 }
+
+/* AG Grid cell vertical alignment and flex containment */
+.ag-theme-quartz .ag-cell {
+  display: flex;
+  align-items: center;
+}
+
+.ag-theme-quartz .ag-cell-value {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}

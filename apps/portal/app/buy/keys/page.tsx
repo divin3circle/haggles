@@ -143,69 +143,93 @@ export default function BuyerKeysPage() {
       {
         headerName: "Name",
         field: "name",
-        minWidth: 150,
+        minWidth: 140,
+        flex: 1,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
           params.data ? (
-            <span className="font-medium text-foreground">{params.data.name}</span>
+            <div className="flex h-full items-center">
+              <span className="font-medium text-foreground">{params.data.name}</span>
+            </div>
           ) : null,
       },
       {
         headerName: "Prefix",
         field: "prefix",
-        minWidth: 165,
+        minWidth: 175,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
           params.data ? (
-            <TruncatedId value={`${params.data.prefix}…`} head={16} tail={0} />
+            <div className="flex h-full items-center">
+              <TruncatedId value={`${params.data.prefix}…`} head={16} tail={0} />
+            </div>
           ) : null,
       },
       {
         headerName: "Policy",
         field: "per_call_max",
-        minWidth: 250,
+        minWidth: 260,
+        flex: 2,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
           params.data ? (
-            <PolicySummary
-              perCallMax={params.data.per_call_max}
-              dailyMax={params.data.daily_max}
-              monthlyMax={params.data.monthly_max}
-              allowedHosts={params.data.allowed_hosts}
-              allowedSellers={params.data.allowed_sellers}
-            />
+            <div className="flex h-full items-center min-w-0 overflow-hidden">
+              <PolicySummary
+                perCallMax={params.data.per_call_max}
+                dailyMax={params.data.daily_max}
+                monthlyMax={params.data.monthly_max}
+                allowedHosts={params.data.allowed_hosts}
+                allowedSellers={params.data.allowed_sellers}
+              />
+            </div>
           ) : null,
       },
       {
         headerName: "Spent today",
         field: "spent_today",
-        minWidth: 115,
+        minWidth: 110,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
-          params.data ? <Money value={params.data.spent_today} /> : null,
+          params.data ? (
+            <div className="flex h-full items-center">
+              <Money value={params.data.spent_today} />
+            </div>
+          ) : null,
       },
       {
         headerName: "Last used",
         field: "last_used_at",
-        minWidth: 120,
+        minWidth: 110,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
-          params.data ? <RelativeDate iso={params.data.last_used_at} /> : null,
+          params.data ? (
+            <div className="flex h-full items-center">
+              <RelativeDate iso={params.data.last_used_at} />
+            </div>
+          ) : null,
       },
       {
         headerName: "Status",
         field: "status",
-        minWidth: 105,
+        minWidth: 100,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) =>
-          params.data ? <StatusBadge status={params.data.status} /> : null,
+          params.data ? (
+            <div className="flex h-full items-center">
+              <StatusBadge status={params.data.status} />
+            </div>
+          ) : null,
       },
       {
         headerName: "Actions",
         field: "id",
-        minWidth: 170,
+        minWidth: 195,
         sortable: false,
         cellRenderer: (params: ICellRendererParams<PortalAgentKey>) => {
           const row = params.data;
           if (!row || row.status === "revoked") {
-            return <span className="text-xs text-muted-foreground">Revoked</span>;
+            return (
+              <div className="flex h-full items-center">
+                <span className="text-xs text-muted-foreground">Revoked</span>
+              </div>
+            );
           }
           return (
-            <div className="flex items-center gap-1.5">
+            <div className="flex h-full items-center gap-2">
               <Button
                 variant="outline"
                 size="xs"
@@ -213,19 +237,21 @@ export default function BuyerKeysPage() {
                   e.stopPropagation();
                   openEditModal(row);
                 }}
+                className="h-7 text-xs"
               >
-                <IconEdit className="size-3" />
+                <IconEdit className="size-3.5" />
                 Edit policy
               </Button>
               <Button
-                variant="destructive"
+                variant="outline"
                 size="xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   setRevokeTarget(row);
                 }}
+                className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
-                <IconTrash className="size-3" />
+                <IconTrash className="size-3.5" />
                 Revoke
               </Button>
             </div>

@@ -434,7 +434,22 @@ export const portalApi = {
       method: "PATCH",
       body: JSON.stringify(patch),
     });
-    if (live) return live;
+    if (live) {
+      const normalized: PortalAccountProfile = {
+        ...live,
+        status: live.status ?? "active",
+        environment: live.environment ?? {
+          haggles_env: "test",
+          paypal_mode: "sandbox",
+          public_api_url:
+            process.env.NEXT_PUBLIC_API_URL ?? "https://haggles-api.onrender.com",
+        },
+      };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("haggles:account-updated"));
+      }
+      return normalized;
+    }
 
     const state = loadDemoState();
     if (patch.display_name !== undefined) {

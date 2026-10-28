@@ -501,8 +501,14 @@ export async function registerPortalRoutes(
         paypal_verified_account: updated.account.paypalVerifiedAccount,
         is_buyer: updated.account.isBuyer,
         is_seller: updated.account.isSeller,
+        status: updated.account.status,
         wallet_id: updated.wallet?.id ?? null,
         seller_id: updated.seller?.id ?? null,
+        environment: {
+          haggles_env: config.HAGGLES_ENV,
+          paypal_mode: config.PAYPAL_MODE,
+          public_api_url: config.PUBLIC_API_URL,
+        },
       };
     },
   );

@@ -11,6 +11,7 @@ import * as React from "react";
 import { AppShell } from "@/components/haggles/app-shell";
 import { StatusBadge, TruncatedId } from "@/components/haggles/primitives";
 import { Button } from "@/components/ui/button";
+import { haloToast } from "@/components/ui/halo-toast";
 import {
   type PortalAccountProfile,
   portalApi,
@@ -35,29 +36,58 @@ export default function AccountPage() {
     setMessage(null);
     try {
       const updated = await portalApi.updateMe({ display_name: displayName });
-      setAccount(updated);
+      setAccount((prev) =>
+        prev
+          ? { ...prev, ...updated, environment: updated.environment ?? prev.environment }
+          : updated,
+      );
       setMessage("Profile saved.");
+      haloToast.success("Profile saved", "Your display name has been updated.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update profile.");
+      const msg = err instanceof Error ? err.message : "Could not update profile.";
+      setError(msg);
+      haloToast.error("Could not update profile", msg);
     }
   };
 
   const handleToggleRole = async (role: "is_buyer" | "is_seller", nextVal: boolean) => {
     setError(null);
     setMessage(null);
+    const roleLabel = role === "is_buyer" ? "Buyer" : "Seller";
     try {
       const updated = await portalApi.updateMe({ [role]: nextVal });
-      setAccount(updated);
-      setMessage("Role settings updated.");
+      setAccount((prev) =>
+        prev
+          ? { ...prev, ...updated, environment: updated.environment ?? prev.environment }
+          : updated,
+      );
+      const statusText = `${roleLabel} role ${nextVal ? "enabled" : "disabled"}.`;
+      setMessage(statusText);
+      haloToast.success(
+        statusText,
+        nextVal
+          ? `Your ${roleLabel.toLowerCase()} workspace is now active.`
+          : `Your ${roleLabel.toLowerCase()} role has been turned off.`,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not change role while balance is non-zero.");
+      const msg =
+        err instanceof Error ? err.message : "Could not change role while balance is non-zero.";
+      setError(msg);
+      haloToast.error(`Could not update ${roleLabel.toLowerCase()} role`, msg);
     }
   };
 
   const handleRevokeSessions = async () => {
     setError(null);
-    await portalApi.updateMe({ revoke_all_sessions: true });
-    setMessage("Signed out of all other active sessions.");
+    try {
+      await portalApi.updateMe({ revoke_all_sessions: true });
+      setMessage("Signed out of all other active sessions.");
+      haloToast.success("Sessions revoked", "Signed out of all other active sessions.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not revoke sessions.";
+      setError(msg);
+      haloToast.error("Could not revoke sessions", msg);
+    }
   };
 
   return (
@@ -188,15 +218,15 @@ export default function AccountPage() {
           <dl className="mt-3 space-y-2 text-xs">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Facilitator URL</dt>
-              <dd className="font-mono">{account?.environment.public_api_url ?? "http://localhost:3001"}</dd>
+              <dd className="font-mono">{account?.environment?.public_api_url ?? "https://haggles-api.onrender.com"}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Haggles environment</dt>
-              <dd className="font-mono">{account?.environment.haggles_env ?? "test"}</dd>
+              <dd className="font-mono">{account?.environment?.haggles_env ?? "test"}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">PayPal mode</dt>
-              <dd className="font-mono">{account?.environment.paypal_mode ?? "sandbox"}</dd>
+              <dd className="font-mono">{account?.environment?.paypal_mode ?? "sandbox"}</dd>
             </div>
           </dl>
         </div>

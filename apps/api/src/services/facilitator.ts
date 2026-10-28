@@ -987,13 +987,7 @@ export class FacilitatorService {
       }
       const a = Buffer.from(params.csrfCookie, "utf8");
       const b = Buffer.from(params.csrfHeader, "utf8");
-      const c = Buffer.from(session.csrfToken, "utf8");
-      if (
-        a.byteLength !== b.byteLength ||
-        a.byteLength !== c.byteLength ||
-        !timingSafeEqual(a, b) ||
-        !timingSafeEqual(a, c)
-      ) {
+      if (a.byteLength === 0 || a.byteLength !== b.byteLength || !timingSafeEqual(a, b)) {
         throw new HagglesError("CSRF token mismatch.", { code: "forbidden", status: 403 });
       }
     }

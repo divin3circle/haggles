@@ -137,6 +137,10 @@ export function AppShell({
       }
     };
     void load();
+    const onAccountUpdated = () => {
+      void load();
+    };
+    window.addEventListener("haggles:account-updated", onAccountUpdated);
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") {
         void load();
@@ -144,6 +148,7 @@ export function AppShell({
     }, 5000);
     return () => {
       mounted = false;
+      window.removeEventListener("haggles:account-updated", onAccountUpdated);
       clearInterval(interval);
     };
   }, [pathname]);

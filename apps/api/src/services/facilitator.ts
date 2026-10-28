@@ -403,10 +403,11 @@ export class FacilitatorService {
   }
 
   /**
-   * Loads persisted accounts, wallets, sellers, keys, and endpoints from the database into memory.
+   * Loads persisted accounts, wallets, sellers, keys, endpoints, top-ups, and sessions from PostgreSQL into memory.
    */
   async initFromDatabase(): Promise<void> {
     if (!this.dbHandle) return;
+
     try {
       const accountRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at
@@ -428,7 +429,11 @@ export class FacilitatorService {
         this.accountsById.set(acc.id, acc);
         this.accountsByPayerId.set(acc.paypalPayerId, acc);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load accounts from database:", err);
+    }
 
+    try {
       const walletRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, account_id, status, created_at FROM wallets
       `;
@@ -444,7 +449,11 @@ export class FacilitatorService {
         this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
         this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load wallets from database:", err);
+    }
 
+    try {
       const sellerRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at FROM sellers
       `;
@@ -463,7 +472,25 @@ export class FacilitatorService {
         this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
         this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load sellers from database:", err);
+    }
 
+    // Ensure any account with isBuyer / isSeller has its wallet / seller record provisioned
+    for (const acc of this.accountsById.values()) {
+      if (acc.isBuyer && !this.walletsByAccountId.has(acc.id)) {
+        this.createWallet(acc.id);
+      }
+      if (acc.isSeller && !this.sellersByAccountId.has(acc.id)) {
+        this.createSeller({
+          accountId: acc.id,
+          payoutPaypalPayerId: acc.paypalPayerId,
+          payoutEmail: acc.email,
+        });
+      }
+    }
+
+    try {
       const agentKeyRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, wallet_id, name, prefix, key_hash, per_call_max_micros, daily_max_micros, monthly_max_micros, allowed_sellers, allowed_hosts, expires_at, status, last_used_at, revoked_at, created_at FROM agent_keys
       `;
@@ -488,7 +515,11 @@ export class FacilitatorService {
         this.agentKeysById.set(k.id, k);
         this.agentKeysByPrefix.set(k.prefix, k);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load agent_keys from database:", err);
+    }
 
+    try {
       const sellerKeyRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, seller_id, name, prefix, key_hash, status, last_used_at, revoked_at, created_at FROM seller_keys
       `;
@@ -507,7 +538,11 @@ export class FacilitatorService {
         this.sellerKeysById.set(k.id, k);
         this.sellerKeysByPrefix.set(k.prefix, k);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load seller_keys from database:", err);
+    }
 
+    try {
       const endpointRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, seller_id, method, route, display_name, description, last_price_micros, status, created_at FROM endpoints
       `;
@@ -526,10 +561,14 @@ export class FacilitatorService {
         this.endpointsById.set(ep.id, ep);
         this.endpointsByComposite.set(`${ep.sellerId}:${ep.method.toUpperCase()}:${ep.route}`, ep);
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load endpoints from database:", err);
+    }
 
+    try {
       const topupRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, wallet_id, amount_micros, paypal_order_id, paypal_capture_id, paypal_fee_micros, paypal_net_micros, status, created_at
-        FROM topups
+        FROM topups ORDER BY created_at ASC
       `;
       for (const r of topupRows) {
         const t: TopupRecord = {
@@ -548,6 +587,8 @@ export class FacilitatorService {
         if (t.paypalCaptureId) {
           this.topupsByCaptureId.set(t.paypalCaptureId, t);
         }
+        this.ledger.ensureAccount(walletAvailAccountId(t.walletId), "W_AVAIL", t.walletId);
+        this.ledger.ensureAccount(walletHeldAccountId(t.walletId), "W_HELD", t.walletId);
         if (t.status === "credited") {
           try {
             this.ledger.post(
@@ -563,7 +604,11 @@ export class FacilitatorService {
           }
         }
       }
+    } catch (err) {
+      console.warn("[FACILITATOR] Failed to load topups from database:", err);
+    }
 
+    try {
       const sessionRows = await this.dbHandle.sql<Array<any>>`
         SELECT id, account_id, token_hash, expires_at, absolute_expires_at, user_agent, ip, created_at
         FROM sessions WHERE expires_at > now()
@@ -585,7 +630,7 @@ export class FacilitatorService {
         this.sessionsByTokenHash.set(s.tokenHash, s);
       }
     } catch (err) {
-      console.warn("[FACILITATOR] Failed to load snapshot from database:", err);
+      console.warn("[FACILITATOR] Failed to load sessions from database:", err);
     }
   }
 
@@ -737,7 +782,11 @@ export class FacilitatorService {
       try {
         const rows = await this.dbHandle.sql<Array<any>>`
           SELECT id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at
-          FROM accounts WHERE paypal_payer_id = ${identity.paypalPayerId}
+          FROM accounts
+          WHERE paypal_payer_id = ${identity.paypalPayerId}
+             OR paypal_user_id = ${identity.paypalUserId}
+             OR email = ${identity.email}
+          LIMIT 1
         `;
         if (rows.length > 0) {
           const r = rows[0];
@@ -756,44 +805,55 @@ export class FacilitatorService {
           this.accountsById.set(account.id, account);
           this.accountsByPayerId.set(account.paypalPayerId, account);
 
-          if (account.isBuyer && !this.walletsByAccountId.has(account.id)) {
-            const wRows = await this.dbHandle.sql<Array<any>>`
-              SELECT id, account_id, status, created_at FROM wallets WHERE account_id = ${account.id}
-            `;
-            if (wRows.length > 0) {
-              const wr = wRows[0];
-              const w: WalletRecord = {
-                id: wr.id,
-                accountId: wr.account_id,
-                status: wr.status as "active" | "frozen",
-                createdAt: new Date(wr.created_at),
-              };
-              this.wallets.set(w.id, w);
-              this.walletsByAccountId.set(w.accountId, w);
-              this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
-              this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
+          const wRows = await this.dbHandle.sql<Array<any>>`
+            SELECT id, account_id, status, created_at FROM wallets WHERE account_id = ${account.id}
+          `;
+          if (wRows.length > 0) {
+            const wr = wRows[0];
+            const w: WalletRecord = {
+              id: wr.id,
+              accountId: wr.account_id,
+              status: wr.status as "active" | "frozen",
+              createdAt: new Date(wr.created_at),
+            };
+            this.wallets.set(w.id, w);
+            this.walletsByAccountId.set(w.accountId, w);
+            this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
+            this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
+            if (!account.isBuyer) {
+              account.isBuyer = true;
             }
+          } else if (account.isBuyer && !this.walletsByAccountId.has(account.id)) {
+            this.createWallet(account.id);
           }
-          if (account.isSeller && !this.sellersByAccountId.has(account.id)) {
-            const sRows = await this.dbHandle.sql<Array<any>>`
-              SELECT id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at FROM sellers WHERE account_id = ${account.id}
-            `;
-            if (sRows.length > 0) {
-              const sr = sRows[0];
-              const s: SellerRecord = {
-                id: sr.id,
-                accountId: sr.account_id,
-                status: sr.status as "active" | "paused",
-                payoutPaypalPayerId: sr.payout_paypal_payer_id,
-                payoutEmail: sr.payout_email,
-                payoutMode: sr.payout_mode as "paypal" | "simulated",
-                createdAt: new Date(sr.created_at),
-              };
-              this.sellers.set(s.id, s);
-              this.sellersByAccountId.set(s.accountId, s);
-              this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
-              this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
+
+          const sRows = await this.dbHandle.sql<Array<any>>`
+            SELECT id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at FROM sellers WHERE account_id = ${account.id}
+          `;
+          if (sRows.length > 0) {
+            const sr = sRows[0];
+            const s: SellerRecord = {
+              id: sr.id,
+              accountId: sr.account_id,
+              status: sr.status as "active" | "paused",
+              payoutPaypalPayerId: sr.payout_paypal_payer_id,
+              payoutEmail: sr.payout_email,
+              payoutMode: sr.payout_mode as "paypal" | "simulated",
+              createdAt: new Date(sr.created_at),
+            };
+            this.sellers.set(s.id, s);
+            this.sellersByAccountId.set(s.accountId, s);
+            this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
+            this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
+            if (!account.isSeller) {
+              account.isSeller = true;
             }
+          } else if (account.isSeller && !this.sellersByAccountId.has(account.id)) {
+            this.createSeller({
+              accountId: account.id,
+              payoutPaypalPayerId: account.paypalPayerId,
+              payoutEmail: account.email,
+            });
           }
         }
       } catch (err) {
@@ -832,7 +892,12 @@ export class FacilitatorService {
       }
       if (this.dbHandle) {
         await this.dbHandle.sql`
-          UPDATE accounts SET email = ${account.email}, paypal_verified_account = ${account.paypalVerifiedAccount}, display_name = ${account.displayName}
+          UPDATE accounts
+          SET email = ${account.email},
+              paypal_verified_account = ${account.paypalVerifiedAccount},
+              display_name = ${account.displayName},
+              is_buyer = ${account.isBuyer},
+              is_seller = ${account.isSeller}
           WHERE id = ${account.id}
         `.catch((err) => console.warn("[DB] Failed to update account on login:", err));
       }
@@ -857,7 +922,7 @@ export class FacilitatorService {
     };
     this.sessionsByTokenHash.set(tokenHash, session);
     if (this.dbHandle) {
-      void this.dbHandle.sql`
+      await this.dbHandle.sql`
         INSERT INTO sessions (id, account_id, token_hash, expires_at, absolute_expires_at, user_agent, ip, created_at)
         VALUES (${session.id}, ${session.accountId}, ${session.tokenHash}, ${session.expiresAt}, ${session.absoluteExpiresAt}, ${session.userAgent}, ${session.ip}, ${session.createdAt})
         ON CONFLICT (token_hash) DO NOTHING
@@ -952,6 +1017,11 @@ export class FacilitatorService {
     if (!sessionToken) return;
     const tokenHash = sha256Hex(sessionToken);
     this.sessionsByTokenHash.delete(tokenHash);
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        DELETE FROM sessions WHERE token_hash = ${tokenHash}
+      `.catch((err) => console.warn("[DB] Failed to delete session:", err));
+    }
   }
 
   /**
@@ -964,6 +1034,11 @@ export class FacilitatorService {
         this.sessionsByTokenHash.delete(hash);
         count++;
       }
+    }
+    if (this.dbHandle) {
+      void this.dbHandle.sql`
+        DELETE FROM sessions WHERE account_id = ${accountId}
+      `.catch((err) => console.warn("[DB] Failed to delete account sessions:", err));
     }
     return count;
   }
@@ -1008,16 +1083,6 @@ export class FacilitatorService {
       account.isBuyer = false;
     } else if (params.isBuyer === true) {
       account.isBuyer = true;
-      if (!this.walletsByAccountId.has(account.id)) {
-        const w = this.createWallet(account.id);
-        if (this.dbHandle) {
-          await this.dbHandle.sql`
-            INSERT INTO wallets (id, account_id, status, created_at)
-            VALUES (${w.id}, ${w.accountId}, ${w.status}, ${w.createdAt})
-            ON CONFLICT (id) DO NOTHING
-          `.catch((err) => console.warn("[DB] Failed to persist wallet:", err));
-        }
-      }
     }
 
     if (params.isSeller === false && account.isSeller) {
@@ -1035,27 +1100,67 @@ export class FacilitatorService {
       account.isSeller = false;
     } else if (params.isSeller === true) {
       account.isSeller = true;
-      if (!this.sellersByAccountId.has(account.id)) {
-        const s = this.createSeller({
-          accountId: account.id,
-          payoutPaypalPayerId: account.paypalPayerId,
-          payoutEmail: account.email,
-        });
-        if (this.dbHandle) {
-          await this.dbHandle.sql`
-            INSERT INTO sellers (id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at)
-            VALUES (${s.id}, ${s.accountId}, ${s.status}, ${s.payoutPaypalPayerId}, ${s.payoutEmail}, ${s.payoutMode}, ${s.createdAt})
-            ON CONFLICT (id) DO NOTHING
-          `.catch((err) => console.warn("[DB] Failed to persist seller:", err));
-        }
-      }
     }
 
     if (this.dbHandle) {
       await this.dbHandle.sql`
-        UPDATE accounts SET display_name = ${account.displayName}, is_buyer = ${account.isBuyer}, is_seller = ${account.isSeller}
-        WHERE id = ${account.id}
+        INSERT INTO accounts (id, paypal_payer_id, paypal_user_id, email, paypal_verified_account, display_name, is_buyer, is_seller, status, created_at)
+        VALUES (${account.id}, ${account.paypalPayerId}, ${account.paypalUserId}, ${account.email}, ${account.paypalVerifiedAccount}, ${account.displayName}, ${account.isBuyer}, ${account.isSeller}, ${account.status}, ${account.createdAt})
+        ON CONFLICT (id) DO UPDATE SET
+          display_name = EXCLUDED.display_name,
+          is_buyer = EXCLUDED.is_buyer,
+          is_seller = EXCLUDED.is_seller
       `.catch((err) => console.warn("[DB] Failed to persist account profile update:", err));
+    }
+
+    if (account.isBuyer) {
+      const w = this.createWallet(account.id);
+      if (this.dbHandle) {
+        const rows = await this.dbHandle.sql<Array<any>>`
+          INSERT INTO wallets (id, account_id, status, created_at)
+          VALUES (${w.id}, ${w.accountId}, ${w.status}, ${w.createdAt})
+          ON CONFLICT (account_id) DO UPDATE SET status = EXCLUDED.status
+          RETURNING id
+        `.catch((err) => {
+          console.warn("[DB] Failed to persist wallet:", err);
+          return [];
+        });
+        if (rows.length > 0 && rows[0].id !== w.id) {
+          this.wallets.delete(w.id);
+          w.id = rows[0].id;
+          this.wallets.set(w.id, w);
+          this.walletsByAccountId.set(account.id, w);
+          this.ledger.ensureAccount(walletAvailAccountId(w.id), "W_AVAIL", w.id);
+          this.ledger.ensureAccount(walletHeldAccountId(w.id), "W_HELD", w.id);
+        }
+      }
+    }
+
+    if (account.isSeller) {
+      const s = this.createSeller({
+        accountId: account.id,
+        payoutPaypalPayerId: account.paypalPayerId,
+        payoutEmail: account.email,
+      });
+      if (this.dbHandle) {
+        const rows = await this.dbHandle.sql<Array<any>>`
+          INSERT INTO sellers (id, account_id, status, payout_paypal_payer_id, payout_email, payout_mode, created_at)
+          VALUES (${s.id}, ${s.accountId}, ${s.status}, ${s.payoutPaypalPayerId}, ${s.payoutEmail}, ${s.payoutMode}, ${s.createdAt})
+          ON CONFLICT (account_id) DO UPDATE SET status = EXCLUDED.status
+          RETURNING id
+        `.catch((err) => {
+          console.warn("[DB] Failed to persist seller:", err);
+          return [];
+        });
+        if (rows.length > 0 && rows[0].id !== s.id) {
+          this.sellers.delete(s.id);
+          s.id = rows[0].id;
+          this.sellers.set(s.id, s);
+          this.sellersByAccountId.set(account.id, s);
+          this.ledger.ensureAccount(sellerPendingAccountId(s.id), "S_PENDING", s.id);
+          this.ledger.ensureAccount(sellerPayoutAccountId(s.id), "S_PAYOUT", s.id);
+        }
+      }
     }
 
     return {
@@ -1069,7 +1174,13 @@ export class FacilitatorService {
    * Returns the wallet belonging to `accountId`, or throws `404` if not provisioned.
    */
   getWalletForAccount(accountId: string): WalletRecord {
-    const wallet = this.walletsByAccountId.get(accountId);
+    let wallet = this.walletsByAccountId.get(accountId);
+    if (!wallet) {
+      const account = this.accountsById.get(accountId);
+      if (account?.isBuyer) {
+        wallet = this.createWallet(accountId);
+      }
+    }
     if (!wallet) {
       throw new HagglesError("Buyer wallet not enabled on this account.", {
         code: "not_found",
@@ -1083,7 +1194,17 @@ export class FacilitatorService {
    * Returns the seller profile belonging to `accountId`, or throws `404` if not provisioned.
    */
   getSellerForAccount(accountId: string): SellerRecord {
-    const seller = this.sellersByAccountId.get(accountId);
+    let seller = this.sellersByAccountId.get(accountId);
+    if (!seller) {
+      const account = this.accountsById.get(accountId);
+      if (account?.isSeller) {
+        seller = this.createSeller({
+          accountId,
+          payoutPaypalPayerId: account.paypalPayerId,
+          payoutEmail: account.email,
+        });
+      }
+    }
     if (!seller) {
       throw new HagglesError("Seller profile not enabled on this account.", {
         code: "not_found",
@@ -1659,12 +1780,28 @@ export class FacilitatorService {
               ),
             );
             topup.status = "credited";
+            if (this.dbHandle) {
+              await this.dbHandle.sql`
+                UPDATE topups
+                SET status = ${topup.status},
+                    paypal_capture_id = ${topup.paypalCaptureId},
+                    paypal_fee_micros = ${topup.paypalFeeMicros ? topup.paypalFeeMicros.toString() : null},
+                    paypal_net_micros = ${topup.paypalNetMicros ? topup.paypalNetMicros.toString() : null},
+                    amount_micros = ${topup.amountMicros.toString()}
+                WHERE id = ${topup.id}
+              `.catch((err) => console.warn("[DB] Failed to update topup on webhook:", err));
+            }
           }
         }
       } else if (eventType === "PAYMENT.CAPTURE.DENIED") {
         const topup = resolveTopup();
         if (topup && topup.status !== "credited") {
           topup.status = "failed";
+          if (this.dbHandle) {
+            await this.dbHandle.sql`
+              UPDATE topups SET status = 'failed' WHERE id = ${topup.id}
+            `.catch((err) => console.warn("[DB] Failed to update denied topup:", err));
+          }
         }
       } else if (
         eventType === "PAYMENT.CAPTURE.REVERSED" ||
@@ -1673,9 +1810,19 @@ export class FacilitatorService {
         const topup = resolveTopup();
         if (topup) {
           topup.status = "reversed";
+          if (this.dbHandle) {
+            await this.dbHandle.sql`
+              UPDATE topups SET status = 'reversed' WHERE id = ${topup.id}
+            `.catch((err) => console.warn("[DB] Failed to update reversed topup:", err));
+          }
           const wallet = this.wallets.get(topup.walletId);
           if (wallet) {
             wallet.status = "frozen";
+            if (this.dbHandle) {
+              await this.dbHandle.sql`
+                UPDATE wallets SET status = 'frozen' WHERE id = ${wallet.id}
+              `.catch((err) => console.warn("[DB] Failed to freeze wallet:", err));
+            }
             this.recordAudit({
               accountId: wallet.accountId,
               action: "topup.reversed",

@@ -422,8 +422,16 @@ export async function registerPortalRoutes(
           "Returns the authenticated account profile, enabled roles (`is_buyer`, `is_seller`), wallet ID, seller ID, and environment mode (SPEC.md sections 5.2 and 11.6).",
       },
     },
-    async (request) => {
-      const { account } = requireAuth(request);
+    async (request, reply) => {
+      const { account, session } = requireAuth(request);
+      const secureCookie =
+        config.PUBLIC_PORTAL_URL.startsWith("https://") || config.NODE_ENV !== "development";
+      const secureFlag = secureCookie ? " Secure;" : "";
+      reply.header(
+        "set-cookie",
+        `hg_csrf=${encodeURIComponent(session.csrfToken)};${secureFlag} SameSite=Lax; Path=/; Max-Age=${7 * 24 * 60 * 60}`,
+      );
+
       let walletId: string | null = null;
       let sellerId: string | null = null;
       if (account.isBuyer) {
@@ -590,6 +598,9 @@ export async function registerPortalRoutes(
     },
     async (request, reply) => {
       const { account } = requireAuth(request);
+      if (!account.isBuyer) {
+        await facilitator.updateAccountProfile({ accountId: account.id, isBuyer: true });
+      }
       const wallet = facilitator.getWalletForAccount(account.id);
       const { record, fullKey } = facilitator.createAgentKey({
         walletId: wallet.id,
@@ -914,6 +925,9 @@ export async function registerPortalRoutes(
     },
     async (request, reply) => {
       const { account } = requireAuth(request);
+      if (!account.isBuyer) {
+        await facilitator.updateAccountProfile({ accountId: account.id, isBuyer: true });
+      }
       const wallet = facilitator.getWalletForAccount(account.id);
       const topup = await facilitator.createTopupOrder({
         walletId: wallet.id,
@@ -1097,6 +1111,9 @@ export async function registerPortalRoutes(
     },
     async (request, reply) => {
       const { account } = requireAuth(request);
+      if (!account.isSeller) {
+        await facilitator.updateAccountProfile({ accountId: account.id, isSeller: true });
+      }
       const seller = facilitator.getSellerForAccount(account.id);
       const { record, fullKey } = facilitator.createSellerKey({
         sellerId: seller.id,

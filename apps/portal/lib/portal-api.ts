@@ -318,15 +318,25 @@ function saveDemoState(state: DemoPortalState): void {
 
 function isPayPalAuth(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem("haggles_auth_mode") === "paypal";
+  return (
+    window.localStorage.getItem("haggles_auth_mode") === "paypal" ||
+    Boolean(getCsrfCookie())
+  );
 }
 
 async function tryApiFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(method);
+  let thrownError: Error | null = null;
+
   try {
-    const method = (init?.method ?? "GET").toUpperCase();
     const headers = new Headers(init?.headers);
-    if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
-      const csrf = getCsrfCookie();
+    if (isStateChanging) {
+      let csrf = getCsrfCookie();
+      if (!csrf) {
+        await fetch("/portal/v1/me", { credentials: "include" }).catch(() => null);
+        csrf = getCsrfCookie();
+      }
       if (csrf) {
         headers.set("X-Haggles-CSRF", csrf);
       }
@@ -334,30 +344,71 @@ async function tryApiFetch<T>(path: string, init?: RequestInit): Promise<T | nul
         headers.set("Content-Type", "application/json");
       }
     }
-    const res = await fetch(path, {
+
+    let res = await fetch(path, {
       ...init,
       headers,
       credentials: "include",
     });
+
+    // If CSRF cookie was out of sync (e.g. after backend restart), refresh via /portal/v1/me and retry once
+    if (isStateChanging && res.status === 403) {
+      const meRes = await fetch("/portal/v1/me", { credentials: "include" }).catch(() => null);
+      if (meRes?.ok) {
+        const refreshedCsrf = getCsrfCookie();
+        if (refreshedCsrf) {
+          headers.set("X-Haggles-CSRF", refreshedCsrf);
+        }
+        res = await fetch(path, {
+          ...init,
+          headers,
+          credentials: "include",
+        });
+      }
+    }
+
     if (res.status === 401) {
       if (typeof window !== "undefined") {
         const authMode = window.localStorage.getItem("haggles_auth_mode");
-        if (authMode === "paypal") {
+        if (authMode === "paypal" || Boolean(getCsrfCookie())) {
           window.localStorage.removeItem("haggles_auth_mode");
+          document.cookie = "hg_csrf=; Max-Age=0; path=/";
           window.location.href = "/login?expired=1";
           return null;
         }
       }
       return null;
     }
-    if (!res.ok) return null;
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("haggles_auth_mode", "paypal");
+
+    if (!res.ok) {
+      if (isStateChanging && isPayPalAuth()) {
+        const body = (await res.json().catch(() => null)) as {
+          detail?: string;
+          message?: string;
+        } | null;
+        thrownError = new Error(
+          body?.detail ?? body?.message ?? `Request failed with status ${res.status}`,
+        );
+      }
+      if (!thrownError) return null;
+    } else {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("haggles_auth_mode", "paypal");
+      }
+      return (await res.json()) as T;
     }
-    return (await res.json()) as T;
-  } catch {
+  } catch (err) {
+    if (thrownError) throw thrownError;
+    if (isStateChanging && isPayPalAuth() && err instanceof Error) {
+      throw err;
+    }
     return null;
   }
+
+  if (thrownError) {
+    throw thrownError;
+  }
+  return null;
 }
 
 /**

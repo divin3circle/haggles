@@ -72,6 +72,24 @@ export function OnboardingCard() {
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState("");
 
+  React.useEffect(() => {
+    let active = true;
+    void portalApi
+      .getMe()
+      .then((me) => {
+        if (!active) return;
+        if (me.id !== "acc_clean_sandbox" && (me.is_buyer || me.is_seller)) {
+          router.replace(me.is_buyer ? "/buy" : "/sell");
+        }
+      })
+      .catch(() => {
+        // Ignore if unauthenticated or demo mode
+      });
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
   const toggleRole = (id: "buy" | "sell") => {
     setError("");
     if (id === "buy") {

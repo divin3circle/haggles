@@ -51,8 +51,13 @@ async function proxyRequest(
 
     const responseHeaders = new Headers();
     upstreamRes.headers.forEach((value, key) => {
-      // Allow Next.js runtime to manage transfer/encoding
-      if (key.toLowerCase() !== "content-encoding" && key.toLowerCase() !== "content-length") {
+      const lower = key.toLowerCase();
+      // Allow Next.js runtime to manage transfer/encoding and handle set-cookie separately via getSetCookie()
+      if (
+        lower !== "content-encoding" &&
+        lower !== "content-length" &&
+        lower !== "set-cookie"
+      ) {
         responseHeaders.set(key, value);
       }
     });

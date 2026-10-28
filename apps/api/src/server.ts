@@ -42,6 +42,13 @@ export async function startServer(): Promise<void> {
       tickCount++;
       const runReconcile = tickCount % 60 === 0; // every 15m (60 * 15s)
       const runInvariants = tickCount % 240 === 0; // every 1h (240 * 15s)
+      const runKeepAlive = tickCount % 48 === 0; // every 12m (48 * 15s)
+      if (runKeepAlive && config.NODE_ENV === "production") {
+        const apiReady = `${config.PUBLIC_API_URL.replace(/\/$/, "")}/ready`;
+        const portalHealth = `${config.PUBLIC_PORTAL_URL.replace(/\/$/, "")}/api/health`;
+        void fetch(apiReady, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+        void fetch(portalHealth, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+      }
       void runWorkerTick(facilitator, {
         runPayoutReconciliation: runReconcile,
         runInvariantCheck: runInvariants,

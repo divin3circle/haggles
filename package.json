@@ -25,7 +25,9 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "seed": "bun scripts/seed.ts"
+    "seed": "bun scripts/seed.ts",
+    "keepalive": "bun scripts/keepalive.ts",
+    "keepalive:once": "bun scripts/keepalive.ts --once"
   },
   "devDependencies": {
     "prettier": "^3.9.9",

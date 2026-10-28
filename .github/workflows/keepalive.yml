@@ -1,0 +1,27 @@
+name: Render Keep-Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render Free tier spin-down (15m idle threshold)
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Wake & Verify API + Portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.13"
+
+      - name: Ping API (/ready) and Portal (/api/health)
+        run: bun scripts/keepalive.ts --once
+        env:
+          PUBLIC_API_URL: https://haggles-api.onrender.com
+          PUBLIC_PORTAL_URL: https://haggles-portal.onrender.com

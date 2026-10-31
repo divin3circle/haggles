@@ -2,27 +2,12 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Haggles",
-  "logo": {
-    "light": "/logo/light.png",
-    "dark": "/logo/dark.png"
-  },
-  "favicon": "/favicon.png",
-  "icons": {
-    "library": "tabler"
-  },
-  "fonts": {
-    "heading": {
-      "family": "Space Grotesk"
-    },
-    "body": {
-      "family": "Space Grotesk"
-    }
-  },
   "colors": {
     "primary": "#E08B3E",
     "light": "#F59E0B",
     "dark": "#C26D23"
   },
+  "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
@@ -33,7 +18,8 @@
             "pages": [
               "introduction",
               "quickstart-sell",
-              "quickstart-buy"
+              "quickstart-buy",
+              "demo-walkthrough"
             ]
           },
           {
@@ -42,8 +28,7 @@
               "concepts/ledger",
               "concepts/policies",
               "concepts/lifecycle",
-              "concepts/security",
-              "concepts/assumptions"
+              "concepts/security"
             ]
           },
           {

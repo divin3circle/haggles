@@ -18,3 +18,7 @@ coverage/
 
 # Generated
 openapi.json.tmp
+
+# Demo video script
+DEMO_VIDEO_SCRIPT.md
+demo-video-script.md

@@ -12,6 +12,7 @@
     "test": "bunx vitest run"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.109",
     "@ai-sdk/google-vertex": "^2.1.18",
     "@haggles/client": "workspace:*",
     "@haggles/core": "workspace:*",
